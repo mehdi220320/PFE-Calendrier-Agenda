@@ -10,10 +10,7 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
-twilio-video-app-react/*
-twilio-video-app-react
-video-quickstart-js
-video-quickstart-js/*
+
 
 
 # Environment variables

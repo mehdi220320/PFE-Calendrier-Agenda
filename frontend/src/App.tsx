@@ -1,35 +1,42 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Routes, Route, Link } from "react-router-dom";
+import ExpertCalendar from "./ExpertCalendar";
+import Calendary from "./Calendly.tsx";
+import JitsiTest from "./jitsiTest.tsx";
 
-function App() {
-  const [count, setCount] = useState(0)
+function Home() {
+    return (
+        <div style={{ padding: "40px" }}>
+            <h1>Home Page</h1>
+            <Link to="/expert">
+                <button style={{ padding: "10px 20px" }}>
+                    Go to Expert Calendar
+                </button>
+            </Link>
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+            <Link to="/client-calandar">
+                <button style={{ padding: "10px 20px" }}>
+                    Go to Client Calendar
+                </button>
+            </Link>
+            <Link to="/video-chat">
+                <button style={{ padding: "10px 20px" }}>
+                    Go to VideoChat
+                </button>
+            </Link>
+        </div>
+
+    );
 }
 
-export default App
+function App() {
+    return (
+        <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/expert" element={<ExpertCalendar />} />
+            <Route path="/calandar" element={<Calendary />} />
+            <Route path="/videochat" element={<JitsiTest />} />
+        </Routes>
+    );
+}
+
+export default App;
