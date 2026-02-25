@@ -1,10 +1,10 @@
-const Expert = require("./Expert");
+const User = require("./User");
 const Token = require("./Token");
 
-Expert.hasOne(Token, {
-    foreignKey: "expertId",
+User.hasOne(Token, {
+    foreignKey: "userId",
     onDelete: "CASCADE",
 });
-Token.belongsTo(Expert, {
-    foreignKey: "expertId",
+Token.belongsTo(User, {
+    foreignKey: "userId",
 });

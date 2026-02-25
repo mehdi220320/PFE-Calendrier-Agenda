@@ -7,11 +7,11 @@ const Token = sequelize.define("Token", {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true
     },
-    expertId: {
+    userId: {
         type: DataTypes.UUID,
         allowNull: false,
         references: {
-            model: 'Experts',
+            model: 'Users',
             key: 'id'
         }
     },
@@ -31,7 +31,7 @@ const Token = sequelize.define("Token", {
             fields: ['token']
         },
         {
-            fields: ['expertId']
+            fields: ['userId']
         }
     ]
 });

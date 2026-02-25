@@ -1,61 +1,111 @@
 const jwt = require('jsonwebtoken');
-const Token = require('../models/Token');
 const { Op } = require('sequelize');
+const Token = require('../models/Token');
 
-const checkTokenExists = async (req, res, next) => {
+
+const authentication = async (req, res, next) => {
     try {
-        const authHeader = req.headers.authorization;
+        const authHeader = req.header("Authorization");
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({
-                message: 'No token provided'
-            });
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(401).send({ error: "Not authorized. No token." });
         }
 
-        const token = authHeader.split(' ')[1];
+        const token = authHeader.replace("Bearer ", "");
 
-        // Verify JWT
-        const decoded = jwt.verify(token, process.env.SECRET_KEY);
-
-        // Check if token exists in database and is not expired
-        const tokenRecord = await Token.findOne({
+        const existingToken = await Token.findOne({
             where: {
-                token: token,
-                expertId: decoded.expertId,
+                token,
                 expiresAt: {
                     [Op.gt]: new Date()
                 }
             }
         });
 
-        if (!tokenRecord) {
-            return res.status(401).json({
-                message: 'Invalid or expired token'
-            });
+        if (!existingToken) {
+            return res.status(401).send({ error: "Token expired or not recognized." });
         }
 
-        // Add expert info to request
-        req.expertId = decoded.expertId;
-        req.expertEmail = decoded.email;
+
+        req.user = await jwt.verify(token, process.env.SECRET_KEY);
+
         next();
-    } catch (error) {
-        if (error.name === 'JsonWebTokenError') {
-            return res.status(401).json({
-                message: 'Invalid token'
-            });
+
+    } catch (err) {
+        return res.status(401).send({ error: "Invalid or expired token." });
+    }
+};
+
+const adminAuthorization = async (req, res, next) => {
+    try {
+        const authHeader = req.header("Authorization");
+
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(401).send({ error: "Not authorized. No token." });
         }
-        if (error.name === 'TokenExpiredError') {
-            return res.status(401).json({
-                message: 'Token expired'
-            });
-        }
-        console.error('Auth middleware error:', error);
-        res.status(500).json({
-            message: 'Authentication error'
+
+        const token = authHeader.replace("Bearer ", "");
+
+        const existingToken = await Token.findOne({
+            where: {
+                token,
+                expiresAt: {
+                    [Op.gt]: new Date()
+                }
+            }
         });
+
+        if (!existingToken) {
+            return res.status(401).send({ error: "Token expired or not recognized." });
+        }
+
+        const decoded = jwt.verify(token, process.env.SECRET_KEY);
+
+        if (decoded.role !== "admin") {
+            return res.status(403).send({ error: "Admins only." });
+        }
+
+        req.user = decoded;
+
+        next();
+
+    } catch (err) {
+        return res.status(401).send({ error: "Invalid or expired token." });
+    }
+};
+
+const checkTokenExists = async (req, res, next) => {
+    try {
+        const authHeader = req.header("Authorization");
+
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            return res.status(401).send({ error: "No token provided." });
+        }
+
+        const token = authHeader.replace("Bearer ", "");
+
+        const existing = await Token.findOne({
+            where: {
+                token,
+                expiresAt: {
+                    [Op.gt]: new Date()
+                }
+            }
+        });
+
+        if (!existing) {
+            return res.status(401).send({ error: "Token not recognized or expired." });
+        }
+
+        next();
+
+    } catch (err) {
+        return res.status(500).send({ error: "Server error." });
     }
 };
 
 module.exports = {
+    authentication,
+    adminAuthorization,
     checkTokenExists
 };
