@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { google } = require('googleapis');
-const { checkTokenExists } = require('../middleware/authMiddleware');
+const { authentication } = require('../middleware/authMiddleware');
 const Expert = require('../models/User');
 
-router.use(checkTokenExists);
+router.use(authentication);
 
 const getGoogleTokens = async (req) => {
 

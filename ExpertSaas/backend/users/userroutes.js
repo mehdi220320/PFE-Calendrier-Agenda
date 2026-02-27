@@ -3,6 +3,8 @@ const User = require("../models/User");
 const router = express.Router();
 const nodemailer = require('nodemailer');
 require('dotenv').config();
+const { adminAuthorization } = require('../middleware/authMiddleware');
+
 
 function generatePassword(length = 12) {
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
@@ -17,18 +19,16 @@ function generatePassword(length = 12) {
 }
 
 async function sendAccountCreationEmail(userEmail, userFirstname, generatedPassword) {
-    // Create transporter
     const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com', // or your email provider's SMTP
+        host: 'smtp.gmail.com',
         port: 587,
-        secure: false, // true for 465, false for other ports
+        secure: false,
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASSWORD
         }
     });
 
-    // Email content
     const mailOptions = {
         from: `"E-Tafakna Agenda" <${process.env.EMAIL_USER}>`,
         to: userEmail,
@@ -236,9 +236,9 @@ async function sendAccountCreationEmail(userEmail, userFirstname, generatedPassw
         `
     };
 
-    // Send email
     await transporter.sendMail(mailOptions);
 }
+router.use(adminAuthorization);
 
 
 router.post('/adduser', async (req, res) => {

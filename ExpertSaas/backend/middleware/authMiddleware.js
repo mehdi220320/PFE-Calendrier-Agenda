@@ -74,38 +74,8 @@ const adminAuthorization = async (req, res, next) => {
     }
 };
 
-const checkTokenExists = async (req, res, next) => {
-    try {
-        const authHeader = req.header("Authorization");
-
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return res.status(401).send({ error: "No token provided." });
-        }
-
-        const token = authHeader.replace("Bearer ", "");
-
-        const existing = await Token.findOne({
-            where: {
-                token,
-                expiresAt: {
-                    [Op.gt]: new Date()
-                }
-            }
-        });
-
-        if (!existing) {
-            return res.status(401).send({ error: "Token not recognized or expired." });
-        }
-
-        next();
-
-    } catch (err) {
-        return res.status(500).send({ error: "Server error." });
-    }
-};
 
 module.exports = {
     authentication,
-    adminAuthorization,
-    checkTokenExists
+    adminAuthorization
 };

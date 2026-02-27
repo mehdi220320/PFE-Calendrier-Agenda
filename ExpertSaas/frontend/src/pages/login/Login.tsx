@@ -7,6 +7,9 @@ interface AuthResponse {
     expiresIn: number;
     role: string;
     isActive: boolean;
+    email:string;
+    firstname: string;
+    lastname: string;
 }
 
 function Login() {
@@ -59,6 +62,9 @@ function Login() {
             localStorage.setItem('token', data.token);
             localStorage.setItem('userRole', data.role);
             localStorage.setItem('isActive', String(data.isActive));
+            localStorage.setItem('email', String(data.email));
+            localStorage.setItem('firstname', String(data.firstname));
+            localStorage.setItem('lastname', String(data.lastname));
             console.log("data"+localStorage.getItem('token'))
 
             const expirationTime = Date.now() + (data.expiresIn * 1000);
@@ -127,7 +133,7 @@ function Login() {
                         <label className="text-sm font-medium text-gray-700">
                             Mot de passe
                         </label>
-                        <div className="relative">
+                        <div className="relative" >
                             <input
                                 type={showPassword ? "text" : "password"}
                                 name="password"
@@ -152,6 +158,7 @@ function Login() {
                     <div className="flex justify-end">
                         <button
                             type="button"
+                            style={{"cursor": "pointer"}}
                             onClick={() => navigate('/forgot-password')}
                             className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
                         >

@@ -26,7 +26,7 @@ app.use(session({
     }
 }));
 app.use('/api/auth', authRouter);
-app.use('/api/calendar', calandarRouter);
+// app.use('/api/calendar', calandarRouter);
 app.use('/api/users', userRouter);
 
 

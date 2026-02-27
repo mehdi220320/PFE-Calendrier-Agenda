@@ -3,6 +3,9 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import Login from './pages/login/Login.tsx';
+import ForgotPassword from './pages/forgetPassword/ForgotPassword.tsx';
+import ResetPassword from './pages/forgetPassword/ResetPassword.tsx';
+import Settings from './pages/settings/Settings.tsx';
 import Dashboard from './pages/dashboard/Dashboard.tsx';
 import CalendarPage from "./pages/calendar/Calendar.tsx";
 
@@ -27,7 +30,10 @@ function App() {
         <Router>
             <Routes>
                 <Route path="/login" element={<Login />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/settings" element={<Settings />} />
 
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
 
