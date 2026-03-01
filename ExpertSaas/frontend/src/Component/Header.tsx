@@ -88,7 +88,27 @@ function Header() {
                                 Agenda
                             </span>
                         </Link>
-
+                        <Link
+                            to="/workingHours"
+                            className="text-sm font-semibold leading-6 text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                            <span className="flex items-center gap-2">
+                              <svg
+                                  className="w-5 h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                              >
+                              <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M8 7V3m8 4V3m-9 8l2 2 4-4M5 8h14M5 8a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2"
+                              />
+                            </svg>
+                                Disponibilités
+                            </span>
+                        </Link>
                         <Link
                             to="/meetings"
                             className="text-sm font-semibold leading-6 text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"

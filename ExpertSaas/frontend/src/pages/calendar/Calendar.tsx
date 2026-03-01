@@ -241,7 +241,6 @@ function CalendarPage() {
     }, []);
 
     useEffect(() => {
-        // Filter events based on selected calendar (simulated)
         if (selectedCalendar === 'primary') {
             setEvents(MOCK_EVENTS);
         } else if (selectedCalendar === 'work') {

@@ -3,7 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const sequelize = require('./config/db');
 const authRouter = require('./auth/authentification');
-const calandarRouter = require('./calendar/calendarrouter');
+const calandarRouter = require('./agenda/CalendarRoute');
 const userRouter = require('./users/userroutes');
 const session = require("express-session");
 const User =require('./models/User.js')
@@ -26,7 +26,7 @@ app.use(session({
     }
 }));
 app.use('/api/auth', authRouter);
-// app.use('/api/calendar', calandarRouter);
+app.use('/api/calendar', calandarRouter);
 app.use('/api/users', userRouter);
 
 

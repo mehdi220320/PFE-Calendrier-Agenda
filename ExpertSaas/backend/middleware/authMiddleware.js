@@ -28,7 +28,6 @@ const authentication = async (req, res, next) => {
 
 
         req.user = await jwt.verify(token, process.env.SECRET_KEY);
-
         next();
 
     } catch (err) {

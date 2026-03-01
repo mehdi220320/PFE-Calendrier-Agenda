@@ -8,6 +8,8 @@ import ResetPassword from './pages/forgetPassword/ResetPassword.tsx';
 import Settings from './pages/settings/Settings.tsx';
 import Dashboard from './pages/dashboard/Dashboard.tsx';
 import CalendarPage from "./pages/calendar/Calendar.tsx";
+import WorkingHoursPage from "./pages/calendar/WorkingHoursPage.tsx";
+import MyDisponibilityCalendar from "./pages/calendar/MyDisponibilityCalendar.tsx";
 
 const Users = lazy(() => import('./admin/pages/Users.tsx'));
 const Meetings = lazy(() => import('./admin/pages/Meetings.tsx'));
@@ -32,10 +34,12 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/workingHours" element={<WorkingHoursPage />} />
 
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+                <Route path="/mydisponibility" element={<MyDisponibilityCalendar />} />
 
                 <Route
                     path="/admin/users"
