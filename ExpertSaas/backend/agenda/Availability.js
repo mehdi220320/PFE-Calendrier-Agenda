@@ -1,7 +1,7 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db");
 
-const WorkingHours = sequelize.define("WorkingHours", {
+const Availability = sequelize.define("Availability", {
     id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -39,4 +39,4 @@ const WorkingHours = sequelize.define("WorkingHours", {
 
 });
 
-module.exports = WorkingHours;
+module.exports = Availability;

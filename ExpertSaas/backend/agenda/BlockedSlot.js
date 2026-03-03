@@ -15,10 +15,8 @@ const BlockedSlot = sequelize.define("BlockedSlot", {
             key: 'id'
         }
     },
-    startDayDate:{type : DataTypes.DATE, allowNull:false},
-    endDayDate:{type : DataTypes.DATE,allowNull:false},
-    startDateTime: {type : DataTypes.TIME, allowNull:false},
-    endDateTime: {type : DataTypes.TIME, allowNull:false},
+    startDateTime: {type : DataTypes.DATE, allowNull:false},
+    endDateTime: {type : DataTypes.DATE, allowNull:false},
     reason:{type:DataTypes.STRING, allowNull:true},
 });
 

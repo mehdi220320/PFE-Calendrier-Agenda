@@ -1,4 +1,4 @@
-export interface WorkingHours {
+export interface Availability {
     id?: string;
     userId: string;
     dayOfWeek: number[];
@@ -7,25 +7,24 @@ export interface WorkingHours {
     slotDuration: number;
 }
 
-export interface WorkingHoursFormData {
+export interface AvailabilityFormData {
     dayOfWeek: number[];
     startTime: string;
     endTime: string;
     slotDuration: number;
 }
+
+
+
 export interface BlockedSlot {
     id?: string;
     userId: string;
-    startDayDate: string;
-    endDayDate: string;
     startDateTime: string;
     endDateTime: string;
     reason?: string;
 }
 
 export interface BlockedSlotFormData {
-    startDayDate: string;
-    endDayDate: string;
     startDateTime: string;
     endDateTime: string;
     reason: string;
@@ -34,19 +33,16 @@ export interface BlockedSlotFormData {
 export interface Break {
     id?: string;
     userId: string;
-    startAt: string; // Format HH:mm
-    endAt: string; // Format HH:mm
+    startAt: string;
+    endAt: string;
 }
 
 export interface BreakFormData {
     startAt: string;
     endAt: string;
 }
-export interface DisponibilityData {
-    blockSlots: BlockedSlot[];
-    workinghours: WorkingHours | null;
-    break: Break | null;
-}
+
+
 
 export interface TimeSlot {
     date: Date;
@@ -63,11 +59,27 @@ export interface DayDisponibility {
     slots: TimeSlot[];
 }
 
-export interface ApiResponse<T = any> {
-    message: string;
-    result?: boolean;
-    workingHours?: WorkingHours;
-    blockedSlot?: BlockedSlot;
-    blockedSlotId?: string;
+export interface DisponibilityData {
+    blockSlots: BlockedSlot[];
+    availability: Availability | null;
+    break: Break | null;
+    availabilityoverride: AvailabilityOverride [];
+}
+
+export interface AvailabilityOverride {
+    id?: string;
+    userId: string;
+    day: string;
+    workingTimes: WorkingInterval[];
+}
+
+export interface WorkingInterval {
+    start: string;
+    end: string;
+}
+
+export interface AvailabilityOverrideFormData {
+    day: string;
+    workingTimes: WorkingInterval[];
 }
 

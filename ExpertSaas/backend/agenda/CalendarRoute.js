@@ -1,15 +1,18 @@
 const express = require("express");
 const router = express.Router();
 const User=require("../models/User");
-const WorkingHours=require("./WorkingHours");
+const Availability=require("./Availability");
+const AvailabilityOverride=require("./AvailabilityOverride");
 const BlockedSlot=require("./BlockedSlot");
 const Break=require("./Break");
 require('dotenv').config();
+const { Op } = require("sequelize");
+
 const { authentication } = require('../middleware/authMiddleware');
 
 router.use(authentication);
 
-router.post("/addWorkingHours", async (req, res) => {
+router.post("/addAvailability", async (req, res) => {
     try {
 
         const {dayOfWeek, startTime, endTime, slotDuration } = req.body;
@@ -20,19 +23,19 @@ router.post("/addWorkingHours", async (req, res) => {
         if (!user) {
             return res.status(404).send({ message: 'User not found' });
         }
-        const workingHoursExist = await WorkingHours.findOne({
+        const availabilityExist = await Availability.findOne({
             where: { userId: userId }
         });
 
-        if (workingHoursExist) {
-            return res.status(400).send({ message: 'WorkingHours already exists' }); // Correction: 400 au lieu de 404
+        if (availabilityExist) {
+            return res.status(400).send({ message: 'Availability already exists' });
         }
 
-        const newWorkingHours = await WorkingHours.create({ userId, dayOfWeek, startTime, endTime, slotDuration });
+        const newAvailability = await Availability.create({ userId, dayOfWeek, startTime, endTime, slotDuration });
 
         res.status(201).send({
-            message: "WorkingHours registered successfully",
-            WorkingHours: newWorkingHours
+            message: "Availability registered successfully",
+            Availability: newAvailability
         });
     }
     catch (e) {
@@ -40,39 +43,40 @@ router.post("/addWorkingHours", async (req, res) => {
     }
 });
 
-router.patch("/updateWorkingHours", async (req, res) => {
+
+router.patch("/updateAvailability", async (req, res) => {
     try {
-        const workingHours = await WorkingHours.findOne({
+        const availability = await Availability.findOne({
             where: { userId: req.user.userId }
         });
 
-        if (!workingHours) {
-            return res.status(404).send({ message: 'WorkingHours not found' });
+        if (!availability) {
+            return res.status(404).send({ message: 'Availability not found' });
         }
 
         const { dayOfWeek, startTime, endTime, slotDuration } = req.body;
-        const newWorkingHours = await workingHours.update({ dayOfWeek, startTime, endTime, slotDuration });
+        const newAvailability = await availability.update({ dayOfWeek, startTime, endTime, slotDuration });
 
         res.status(200).send({
-            message: 'WorkingHours updated successfully',
-            newworkingHours: newWorkingHours
+            message: 'Availability updated successfully',
+            newAvailability: newAvailability
         });
     } catch (e) {
         res.status(400).send({ message: e.message });
     }
 });
 
-router.get('/WorkingHours', async (req, res) => {
+router.get('/Availability', async (req, res) => {
     try {
-        const workingHours = await WorkingHours.findOne({
+        const availability = await Availability.findOne({
             where: { userId: req.user.userId }
         });
 
-        if (!workingHours) {
-            return res.status(404).send({ message: 'WorkingHours not found' });
+        if (!availability) {
+            return res.status(404).send({ message: 'Availability not found' });
         }
 
-        res.status(200).send({ workingHours }); // Correction: 200 au lieu de 201
+        res.status(200).send({ availability });
     } catch (e) {
         res.status(400).send({ message: e.message });
     }
@@ -80,28 +84,41 @@ router.get('/WorkingHours', async (req, res) => {
 
 router.post("/addBlockedSlot", async (req, res) => {
     try {
-        const {  startDayDate, endDayDate, startDateTime, endDateTime, slotDuration, reason } = req.body;
-        const userId=req.user.userId
-        const user = await User.findByPk(userId);
+        const { startDateTime, endDateTime, reason } = req.body;
+        const userId = req.user.userId;
 
-        if (!user) {
-            return res.status(404).send({ message: 'User not found' });
+        if (new Date(startDateTime) >= new Date(endDateTime)) {
+            return res.status(400).send({
+                message: "Start datetime must be before end datetime"
+            });
+        }
+
+        const existingSlot = await BlockedSlot.findOne({
+            where: {
+                userId,
+                startDateTime: { [Op.lt]: endDateTime },
+                endDateTime:   { [Op.gt]: startDateTime }
+            }
+        });
+
+        if (existingSlot) {
+            return res.status(400).send({
+                message: `Blocked slot already exists from ${existingSlot.startDateTime} to ${existingSlot.endDateTime}`
+            });
         }
 
         const newBlockedSlot = await BlockedSlot.create({
             userId,
-            startDayDate,
-            endDayDate,
             startDateTime,
             endDateTime,
-            slotDuration,
             reason
         });
 
         res.status(201).send({
             message: "BlockedSlot registered successfully",
-            BlockedSlot: newBlockedSlot
+            blockedSlot: newBlockedSlot
         });
+
     } catch (e) {
         res.status(400).send({ message: e.message });
     }
@@ -129,6 +146,7 @@ router.post("/addBreak", async (req, res) => {
         res.status(400).send({ message: e.message });
     }
 });
+
 router.patch("/updateBreak", async (req, res) => {
     try {
         const bbreak= await Break.findOne({
@@ -150,6 +168,7 @@ router.patch("/updateBreak", async (req, res) => {
         res.status(400).send({ message: e.message });
     }
 });
+
 router.delete("/deleteBreak", async (req, res) => {
     try {
         const bbreak= await Break.findOne({
@@ -160,7 +179,7 @@ router.delete("/deleteBreak", async (req, res) => {
             return res.status(404).send({ message: 'Break not found' });
         }
 
-       bbreak.destroy();
+        await bbreak.destroy();
 
         res.status(200).send({
             message: 'Break deleted successfully',
@@ -169,6 +188,7 @@ router.delete("/deleteBreak", async (req, res) => {
         res.status(400).send({ message: e.message });
     }
 });
+
 router.get("/Break", async (req, res) => {
     try {
         const bbreak= await Break.findOne({
@@ -183,8 +203,6 @@ router.get("/Break", async (req, res) => {
     }
 });
 
-
-
 router.get("/allBlockedSlot", async (req, res) => {
     try {
         const blockedSlot = await BlockedSlot.findAll({
@@ -197,16 +215,16 @@ router.get("/allBlockedSlot", async (req, res) => {
     }
 });
 
-router.get("/checkWorkingHoursExists", async (req, res) => {
+router.get("/checkAvailabilityExists", async (req, res) => {
     try {
-        const workingHours = await WorkingHours.findOne({
+        const availability = await Availability.findOne({
             where: { userId: req.user.userId }
         });
 
-        if (workingHours) {
-            res.status(200).send({ message: 'WorkingHours already exists', result: true });
+        if (availability) {
+            res.status(200).send({ message: 'Availability already exists', result: true });
         } else {
-            res.status(200).send({ message: 'WorkingHours not found', result: false });
+            res.status(200).send({ message: 'Availability not found', result: false });
         }
     } catch (e) {
         res.status(400).send({ message: e.message });
@@ -229,27 +247,126 @@ router.delete("/deleteBlockedSlot", async (req, res) => {
     }
 });
 
-router.get("/disponibility",async(req,res)=>{
+router.get("/disponibility", async (req, res) => {
     try {
         const userId=req.user.userId;
         const blockedSlots = await BlockedSlot.findAll({
+            where: {
+                userId: userId,
+                startDateTime: {
+                    [Op.gte]: new Date().setHours(0, 0, 0, 0)
+                }
+            }
+        });
+        const availability = await Availability.findOne({
             where: { userId: userId }
         });
-        const workinghours= await WorkingHours.findOne({
-            where:{userId:userId}
+        const availabilityoverride = await AvailabilityOverride.findAll({
+            where: {
+                userId: userId,
+                day: {
+                    [Op.gte]: new Date().setHours(0, 0, 0, 0)
+                }
+            }
         });
-        const bbreak= await Break.findOne({
-            where:{userId:userId}
+        const bbreak = await Break.findOne({
+            where: { userId: userId }
         });
         res.status(200).send({
             blockSlots: blockedSlots,
-            workinghours: workinghours,
+            availability: availability,
+            availabilityoverride:availabilityoverride,
             break: bbreak
         });
     } catch (e) {
         res.status(400).send({ message: e.message });
     }
-})
+});
 
+router.post("/addAvailabilityOverride", async (req, res) => {
+    try {
+        const { day, workingTimes } = req.body;
+        const userId = req.user.userId;
+
+        const existingOverride = await AvailabilityOverride.findOne({
+            where: {
+                userId,
+                day
+            }
+        });
+
+        if (existingOverride) {
+            return res.status(400).send({
+                message: `An override already exists for ${day}, use the update route instead`
+            });
+        }
+
+        const newOverride = await AvailabilityOverride.create({
+            userId,
+            day,
+            workingTimes
+        });
+
+        res.status(201).send({
+            message: "AvailabilityOverride created successfully",
+            availabilityOverride: newOverride
+        });
+
+    } catch (e) {
+        res.status(400).send({ message: e.message });
+    }
+});
+
+router.patch("/updateAvailabilityOverride/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { day, workingTimes } = req.body;
+        const userId = req.user.userId;
+
+        const override = await AvailabilityOverride.findOne({
+            where: { id, userId }
+        });
+
+        if (!override) {
+            return res.status(404).send({ message: 'AvailabilityOverride not found' });
+        }
+
+        const updatedOverride = await override.update({
+            ...(day && { day }),
+            ...(workingTimes && { workingTimes })
+        });
+
+        res.status(200).send({
+            message: 'AvailabilityOverride updated successfully',
+            availabilityOverride: updatedOverride
+        });
+
+    } catch (e) {
+        res.status(400).send({ message: e.message });
+    }
+});
+
+router.delete("/deleteAvailabilityOverride/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.userId;
+
+        const override = await AvailabilityOverride.findOne({
+            where: { id, userId }
+        });
+
+        if (!override) {
+            return res.status(404).send({ message: 'AvailabilityOverride not found' });
+        }
+
+        await override.destroy();
+
+        res.status(200).send({ message: 'AvailabilityOverride deleted successfully' });
+
+    } catch (e) {
+        res.status(400).send({ message: e.message });
+    }
+});
 
 module.exports = router;
+

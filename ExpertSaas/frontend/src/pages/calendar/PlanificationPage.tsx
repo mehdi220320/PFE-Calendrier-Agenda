@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { calendarService } from '../../services/calendarService';
-import type { WorkingHoursFormData, BlockedSlot, Break } from '../../models/Calendar';
+import { calendarService } from '../../services/calendarService.tsx';
+import type {
+    AvailabilityFormData,
+    BlockedSlot,
+    Break,
+    AvailabilityOverride,
+    WorkingInterval
+} from '../../models/Calendar.tsx';
 import AddBlockedSlot from './AddBlockedSlot';
 import AddBreakModal from './AddBreakModal';
 import Header from "../../Component/Header";
 
-const WorkingHoursPage: React.FC = () => {
+const PlanificationPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
-    const [workingHoursExists, setWorkingHoursExists] = useState(false);
-    const [workingHours, setWorkingHours] = useState<WorkingHoursFormData | null>(null);
+    const [initialCheckLoading, setInitialCheckLoading] = useState(true);
+    const [availabilityExists, setAvailabilityExists] = useState(false);
+    const [availability, setAvailability] = useState<AvailabilityFormData | null>(null);
     const [showForm, setShowForm] = useState(false);
     const [showBlockedSlotModal, setShowBlockedSlotModal] = useState(false);
     const [showBreakModal, setShowBreakModal] = useState(false);
@@ -17,10 +24,15 @@ const WorkingHoursPage: React.FC = () => {
     const [breakData, setBreakData] = useState<Break | null>(null);
     const [loadingBlockedSlots, setLoadingBlockedSlots] = useState(false);
     const [loadingBreak, setLoadingBreak] = useState(false);
-    const [formErrors, setFormErrors] = useState<Partial<WorkingHoursFormData>>({});
+    const [formErrors, setFormErrors] = useState<Partial<AvailabilityFormData>>({});
+    const [overrides, setOverrides] = useState<AvailabilityOverride[]>([]);
+    const [loadingOverrides, setLoadingOverrides] = useState(false);
+    const [showOverrideForm, setShowOverrideForm] = useState(false);
+    const [selectedDay, setSelectedDay] = useState<string>('');
+    const [overrideIntervals, setOverrideIntervals] = useState<WorkingInterval[]>([{ start: '09:00', end: '17:00' }]);
 
-    const [formData, setFormData] = useState<WorkingHoursFormData>({
-        dayOfWeek: [1],
+    const [formData, setFormData] = useState<AvailabilityFormData>({
+        dayOfWeek: [1,2,3,4,5], // Lundi to Vendredi by default
         startTime: '09:00',
         endTime: '17:00',
         slotDuration: 30
@@ -36,30 +48,62 @@ const WorkingHoursPage: React.FC = () => {
         { value: 6, label: 'Dimanche' }
     ];
 
+    const today = new Date();
+    const currentDayOfWeek = today.getDay(); // 0 = Dimanche, 1 = Lundi, ...
+    const adjustedCurrentDay = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // Convert to our format (0 = Lundi)
+
+    const getWeekDates = () => {
+        const dates = [];
+        const currentDate = new Date(today);
+        const day = currentDate.getDay(); // 0 = Dimanche
+        const diff = currentDate.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+
+        const monday = new Date(currentDate.setDate(diff));
+
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(monday);
+            date.setDate(monday.getDate() + i);
+            dates.push({
+                date: date.toISOString().split('T')[0],
+                dayOfWeek: i,
+                label: daysOfWeek[i].label,
+                fullDate: new Date(date)
+            });
+        }
+        return dates;
+    };
+
+    const weekDates = getWeekDates();
+
     useEffect(() => {
-        checkWorkingHours();
+        checkAvailability();
     }, []);
 
     useEffect(() => {
-        if (workingHoursExists) {
+        if (availabilityExists) {
             fetchBreak();
+            fetchOverrides();
             if (showBlockedSlots) {
                 fetchBlockedSlots();
             }
         }
-    }, [workingHoursExists, showBlockedSlots]);
+    }, [availabilityExists, showBlockedSlots]);
 
-    const checkWorkingHours = async () => {
+    const checkAvailability = async () => {
+        setInitialCheckLoading(true);
         try {
-            const response = await calendarService.checkWorkingHoursExists();
-            setWorkingHoursExists(response.result);
+            const response = await calendarService.checkAvailabilityExists();
+            setAvailabilityExists(response.result);
 
             if (response.result) {
-                const data = await calendarService.getWorkingHours();
-                setWorkingHours(data);
+                const data = await calendarService.getAvailability();
+                setAvailability(data);
+                setFormData(data);
             }
         } catch (error) {
-            console.error('Erreur lors de la vérification des heures de travail:', error);
+            console.error('Erreur lors de la vérification de la disponibilité:', error);
+        } finally {
+            setInitialCheckLoading(false);
         }
     };
 
@@ -75,6 +119,18 @@ const WorkingHoursPage: React.FC = () => {
         }
     };
 
+    const fetchOverrides = async () => {
+        setLoadingOverrides(true);
+        try {
+            const disponibility = await calendarService.getDisponibility();
+            setOverrides(disponibility.availabilityoverride || []);
+        } catch (error) {
+            console.error('Erreur lors du chargement des overrides:', error);
+            setOverrides([]);
+        } finally {
+            setLoadingOverrides(false);
+        }
+    };
     const fetchBlockedSlots = async () => {
         setLoadingBlockedSlots(true);
         try {
@@ -83,12 +139,12 @@ const WorkingHoursPage: React.FC = () => {
             today.setHours(0, 0, 0, 0);
 
             const upcomingSlots = slots.filter(slot => {
-                const slotDate = new Date(slot.startDayDate);
+                const slotDate = new Date(slot.startDateTime);
                 return slotDate >= today;
             });
 
             upcomingSlots.sort((a, b) =>
-                new Date(a.startDayDate).getTime() - new Date(b.startDayDate).getTime()
+                new Date(a.startDateTime).getTime() - new Date(b.startDateTime).getTime()
             );
 
             setBlockedSlots(upcomingSlots);
@@ -105,6 +161,18 @@ const WorkingHoursPage: React.FC = () => {
                 await calendarService.deleteBlockedSlot(id);
                 fetchBlockedSlots();
                 alert('Créneau bloqué supprimé avec succès');
+            } catch (error: any) {
+                alert(error.response?.data?.message || 'Erreur lors de la suppression');
+            }
+        }
+    };
+
+    const handleDeleteOverride = async (id: string) => {
+        if (window.confirm('Êtes-vous sûr de vouloir supprimer cette exception ?')) {
+            try {
+                await calendarService.deleteAvailabilityOverride(id);
+                fetchOverrides();
+                alert('Exception supprimée avec succès');
             } catch (error: any) {
                 alert(error.response?.data?.message || 'Erreur lors de la suppression');
             }
@@ -142,13 +210,123 @@ const WorkingHoursPage: React.FC = () => {
             [name]: name === 'slotDuration' ? parseInt(value) : value
         }));
 
-        if (formErrors[name as keyof WorkingHoursFormData]) {
+        if (formErrors[name as keyof AvailabilityFormData]) {
             setFormErrors(prev => ({ ...prev, [name]: undefined }));
         }
     };
 
+    const handleAddInterval = () => {
+        const lastInterval = overrideIntervals[overrideIntervals.length - 1];
+        const newStart = lastInterval ? lastInterval.end : '09:00';
+        setOverrideIntervals([...overrideIntervals, { start: newStart, end: '17:00' }]);
+    };
+
+    const handleRemoveInterval = (index: number) => {
+        setOverrideIntervals(overrideIntervals.filter((_, i) => i !== index));
+    };
+
+    const handleIntervalChange = (index: number, field: 'start' | 'end', value: string) => {
+        const newIntervals = [...overrideIntervals];
+        newIntervals[index][field] = value;
+
+        newIntervals.sort((a, b) => a.start.localeCompare(b.start));
+
+        setOverrideIntervals(newIntervals);
+    };
+
+    const handleSaveOverride = async () => {
+        if (!selectedDay) return;
+
+        try {
+            // Check if an override already exists for this day
+            const existingOverride = overrides.find(o =>
+                new Date(o.day).toISOString().split('T')[0] === selectedDay
+            );
+
+            const overrideData = {
+                day: new Date(selectedDay).toISOString(),
+                workingTimes: overrideIntervals.filter(interval => interval.start && interval.end)
+            };
+
+            if (existingOverride) {
+                await calendarService.updateAvailabilityOverride(existingOverride.id!, overrideData);
+                alert('Exception mise à jour avec succès');
+            } else {
+                await calendarService.addAvailabilityOverride(overrideData);
+                alert('Exception ajoutée avec succès');
+            }
+
+            setShowOverrideForm(false);
+            setSelectedDay('');
+            setOverrideIntervals([{ start: '09:00', end: '17:00' }]);
+            fetchOverrides();
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'Erreur lors de l\'enregistrement');
+        }
+    };
+
+    const handleOpenOverrideForm = (day: string, dayOfWeek: number) => {
+        // Don't allow modifying past days (days before today)
+        const dayDate = new Date(day);
+        const todayDate = new Date(today);
+        todayDate.setHours(0, 0, 0, 0);
+
+        if (dayDate < todayDate) {
+            alert('Vous ne pouvez pas modifier les jours passés');
+            return;
+        }
+
+        setSelectedDay(day);
+
+        // Check if there's an existing override
+        const existingOverride = overrides.find(o =>
+            new Date(o.day).toISOString().split('T')[0] === day
+        );
+
+        if (existingOverride) {
+            setOverrideIntervals(existingOverride.workingTimes);
+        } else {
+            // If no override and day is in default availability, use default times
+            if (availability?.dayOfWeek.includes(dayOfWeek)) {
+                setOverrideIntervals([{
+                    start: availability.startTime,
+                    end: availability.endTime
+                }]);
+            } else {
+                setOverrideIntervals([{ start: '09:00', end: '17:00' }]);
+            }
+        }
+
+        setShowOverrideForm(true);
+    };
+
+    const getDayDisplayTime = (day: string, dayOfWeek: number): string => {
+        const override = overrides.find(o =>
+            new Date(o.day).toISOString().split('T')[0] === day
+        );
+
+        if (override) {
+            return override.workingTimes.map(interval =>
+                `${interval.start} - ${interval.end}`
+            ).join(', ');
+        }
+
+        if (availability?.dayOfWeek.includes(dayOfWeek)) {
+            return `${availability.startTime} - ${availability.endTime}`;
+        }
+
+        return '';
+    };
+
+    const getOverrideIdForDay = (day: string): string | undefined => {
+        const override = overrides.find(o =>
+            new Date(o.day).toISOString().split('T')[0] === day
+        );
+        return override?.id;
+    };
+
     const validateForm = (): boolean => {
-        const errors: Partial<WorkingHoursFormData> = {};
+        const errors: Partial<AvailabilityFormData> = {};
 
         if (formData.dayOfWeek.length === 0) {
             errors.dayOfWeek = 'Sélectionnez au moins un jour';
@@ -188,17 +366,17 @@ const WorkingHoursPage: React.FC = () => {
         setLoading(true);
 
         try {
-            if (workingHoursExists) {
-                await calendarService.updateWorkingHours(formData);
-                alert('Heures de travail mises à jour avec succès');
+            if (availabilityExists) {
+                await calendarService.updateAvailability(formData);
+                alert('Disponibilité mise à jour avec succès');
             } else {
-                await calendarService.addWorkingHours(formData);
-                alert('Heures de travail ajoutées avec succès');
+                await calendarService.addAvailability(formData);
+                alert('Disponibilité ajoutée avec succès');
             }
 
-            setWorkingHoursExists(true);
+            setAvailabilityExists(true);
             setShowForm(false);
-            await checkWorkingHours();
+            await checkAvailability();
         } catch (error: any) {
             alert(error.response?.data?.message || 'Une erreur est survenue');
         } finally {
@@ -207,10 +385,22 @@ const WorkingHoursPage: React.FC = () => {
     };
 
     const handleEdit = () => {
-        if (workingHours) {
-            setFormData(workingHours);
+        if (availability) {
+            setFormData(availability);
         }
         setShowForm(true);
+    };
+
+    const handleDeleteBreak = async () => {
+        if (window.confirm('Êtes-vous sûr de vouloir supprimer votre pause café ?')) {
+            try {
+                await calendarService.deleteBreak();
+                setBreakData(null);
+                alert('Pause café supprimée avec succès');
+            } catch (error: any) {
+                alert(error.response?.data?.message || 'Erreur lors de la suppression');
+            }
+        }
     };
 
     const getSelectedDaysLabel = (days: number[]): string => {
@@ -225,14 +415,42 @@ const WorkingHoursPage: React.FC = () => {
         return selectedLabels.join(', ');
     };
 
-    const formatDate = (dateString: string): string => {
+    const formatDate = (dateTimeString: string): string => {
         const options: Intl.DateTimeFormatOptions = {
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric'
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
         };
-        return new Date(dateString).toLocaleDateString('fr-FR', options);
+        return new Date(dateTimeString).toLocaleDateString('fr-FR', options);
     };
+
+    const formatDisplayDate = (dateString: string): string => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit'
+        });
+    };
+
+    if (initialCheckLoading) {
+        return (
+            <>
+                <Header />
+                <div className="min-h-screen bg-gray-50">
+                    <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+                        <div className="flex justify-center items-center h-64">
+                            <div className="text-center">
+                                <div className="inline-block h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                <p className="mt-4 text-gray-500">Chargement de vos préférences...</p>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            </>
+        );
+    }
 
     return (
         <>
@@ -253,25 +471,25 @@ const WorkingHoursPage: React.FC = () => {
 
                     {/* Stats Grid */}
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-                        {/* Working hours status card */}
+                        {/* Availability status card */}
                         <div className="bg-white overflow-hidden rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300">
                             <div className="p-6">
                                 <div className="flex items-center">
                                     <div className={`flex-shrink-0 rounded-lg p-3 ${
-                                        workingHoursExists ? 'bg-green-100' : 'bg-yellow-100'
+                                        availabilityExists ? 'bg-green-100' : 'bg-yellow-100'
                                     }`}>
                                         <svg className={`w-6 h-6 ${
-                                            workingHoursExists ? 'text-green-600' : 'text-yellow-600'
+                                            availabilityExists ? 'text-green-600' : 'text-yellow-600'
                                         }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
                                     <div className="ml-5 w-0 flex-1">
                                         <dl>
-                                            <dt className="text-sm font-medium text-gray-500 truncate">Statut des heures</dt>
+                                            <dt className="text-sm font-medium text-gray-500 truncate">Statut des disponibilités</dt>
                                             <dd>
                                                 <div className="text-lg font-medium text-gray-900">
-                                                    {workingHoursExists ? 'Configurées' : 'Non configurées'}
+                                                    {availabilityExists ? 'Configurées' : 'Non configurées'}
                                                 </div>
                                             </dd>
                                         </dl>
@@ -294,7 +512,7 @@ const WorkingHoursPage: React.FC = () => {
                                             <dt className="text-sm font-medium text-gray-500 truncate">Jours configurés</dt>
                                             <dd>
                                                 <div className="text-lg font-medium text-gray-900">
-                                                    {workingHours ? workingHours.dayOfWeek.length : 0}/7
+                                                    {availability ? availability.dayOfWeek.length : 0}/7
                                                 </div>
                                             </dd>
                                         </dl>
@@ -317,7 +535,7 @@ const WorkingHoursPage: React.FC = () => {
                                             <dt className="text-sm font-medium text-gray-500 truncate">Durée des créneaux</dt>
                                             <dd>
                                                 <div className="text-lg font-medium text-gray-900">
-                                                    {workingHours ? `${workingHours.slotDuration} min` : 'Non définie'}
+                                                    {availability ? `${availability.slotDuration} min` : 'Non définie'}
                                                 </div>
                                             </dd>
                                         </dl>
@@ -355,7 +573,7 @@ const WorkingHoursPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Main Configuration Card */}
+                    {/* Main Configuration Card - Default Hours */}
                     <div className="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden mb-8">
                         <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
                             <div className="flex justify-between items-center">
@@ -363,9 +581,9 @@ const WorkingHoursPage: React.FC = () => {
                                     <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                     </svg>
-                                    Heures de travail
+                                    Horaires hebdomadaires (Par Défaut)
                                 </h2>
-                                {workingHoursExists && !showForm && (
+                                {availabilityExists && !showForm && (
                                     <div className="flex gap-3">
                                         <button
                                             onClick={handleEdit}
@@ -391,7 +609,7 @@ const WorkingHoursPage: React.FC = () => {
                         </div>
 
                         <div className="p-6">
-                            {!workingHoursExists && !showForm ? (
+                            {!availabilityExists && !showForm ? (
                                 <div className="text-center py-12">
                                     <div className="flex justify-center mb-4">
                                         <div className="bg-indigo-100 rounded-full p-4">
@@ -401,7 +619,7 @@ const WorkingHoursPage: React.FC = () => {
                                         </div>
                                     </div>
                                     <p className="text-gray-500 mb-4">
-                                        Vous n'avez pas encore configuré vos heures de travail
+                                        Vous n'avez pas encore configuré vos disponibilités
                                     </p>
                                     <button
                                         onClick={() => setShowForm(true)}
@@ -410,12 +628,11 @@ const WorkingHoursPage: React.FC = () => {
                                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                         </svg>
-                                        Configurer mes heures de travail
+                                        Configurer mes disponibilités
                                     </button>
                                 </div>
                             ) : showForm ? (
                                 <form onSubmit={handleSubmit} className="space-y-6">
-                                    {/* Form content - same as before */}
                                     <div className="bg-gray-50/50 p-6 rounded-xl border border-gray-200">
                                         <h3 className="text-md font-medium text-gray-900 mb-4 flex items-center">
                                             <svg className="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -450,8 +667,8 @@ const WorkingHoursPage: React.FC = () => {
                                                                 ? 'text-indigo-700'
                                                                 : 'text-gray-700'
                                                         }`}>
-                              {day.label}
-                            </span>
+                                                            {day.label}
+                                                        </span>
                                                     </label>
                                                 ))}
                                             </div>
@@ -569,19 +786,19 @@ const WorkingHoursPage: React.FC = () => {
                                         >
                                             {loading ? (
                                                 <span className="flex items-center">
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Enregistrement...
-                        </span>
+                                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Enregistrement...
+                                                </span>
                                             ) : (
-                                                workingHoursExists ? 'Mettre à jour' : 'Enregistrer'
+                                                availabilityExists ? 'Mettre à jour' : 'Enregistrer'
                                             )}
                                         </button>
                                     </div>
                                 </form>
-                            ) : workingHours && (
+                            ) : availability && (
                                 <div className="space-y-4">
                                     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-100">
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -593,7 +810,7 @@ const WorkingHoursPage: React.FC = () => {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm text-gray-500">Jours</p>
-                                                    <p className="font-semibold text-gray-900">{getSelectedDaysLabel(workingHours.dayOfWeek)}</p>
+                                                    <p className="font-semibold text-gray-900">{getSelectedDaysLabel(availability.dayOfWeek)}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center space-x-3">
@@ -604,7 +821,7 @@ const WorkingHoursPage: React.FC = () => {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm text-gray-500">Horaires</p>
-                                                    <p className="font-semibold text-gray-900">{workingHours.startTime} - {workingHours.endTime}</p>
+                                                    <p className="font-semibold text-gray-900">{availability.startTime} - {availability.endTime}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center space-x-3">
@@ -615,7 +832,7 @@ const WorkingHoursPage: React.FC = () => {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm text-gray-500">Durée des créneaux</p>
-                                                    <p className="font-semibold text-gray-900">{workingHours.slotDuration} minutes</p>
+                                                    <p className="font-semibold text-gray-900">{availability.slotDuration} minutes</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -625,8 +842,235 @@ const WorkingHoursPage: React.FC = () => {
                         </div>
                     </div>
 
+                    {/* Date-specific hours section - Improved Design */}
+                    <div className="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden mb-8">
+                        <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                                <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                                    <div className="bg-indigo-100 p-2 rounded-lg mr-3">
+                                        <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    </div>
+                                    <span>Horaires spécifiques</span>
+                                    <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                    {overrides.length} exception{overrides.length !== 1 ? 's' : ''}
+                </span>
+                                </h2>
+                                <p className="text-sm text-gray-500 flex items-center">
+                                    <svg className="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Ajustez les horaires pour des jours spécifiques
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-6">
+                            {loadingOverrides ? (
+                                <div className="flex justify-center py-12">
+                                    <div className="relative">
+                                        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                                        <p className="mt-4 text-sm text-gray-500">Chargement des exceptions...</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {weekDates.map((day) => {
+                                        // Find override for this specific day (now working with array)
+                                        const dayOverride = overrides.find(o =>
+                                            new Date(o.day).toISOString().split('T')[0] === day.date
+                                        );
+
+                                        const displayTime = dayOverride
+                                            ? dayOverride.workingTimes.map(interval =>
+                                                `${interval.start} - ${interval.end}`
+                                            ).join(', ')
+                                            : availability?.dayOfWeek.includes(day.dayOfWeek)
+                                                ? `${availability.startTime} - ${availability.endTime}`
+                                                : '';
+
+                                        const overrideId = dayOverride?.id;
+                                        const dayDate = new Date(day.date);
+                                        const todayDate = new Date(today);
+                                        todayDate.setHours(0, 0, 0, 0);
+                                        const isPast = dayDate < todayDate;
+                                        const isToday = dayDate.getTime() === todayDate.getTime();
+
+                                        return (
+                                            <div
+                                                key={day.date}
+                                                className={`group relative flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl transition-all ${
+                                                    isPast
+                                                        ? 'bg-gray-50/50 border border-gray-200 opacity-60'
+                                                        : isToday
+                                                            ? 'bg-indigo-50/50 border border-indigo-200 hover:border-indigo-300 hover:shadow-md'
+                                                            : 'bg-white border border-gray-200 hover:border-indigo-200 hover:shadow-md'
+                                                }`}
+                                            >
+                                                {/* Day indicator */}
+                                                <div className="flex items-center sm:w-40">
+                                                    <div className={`w-2 h-2 rounded-full mr-3 ${
+                                                        isPast ? 'bg-gray-400' : isToday ? 'bg-indigo-500' : 'bg-green-500'
+                                                    }`}></div>
+                                                    <div>
+                                    <span className={`font-semibold ${
+                                        isPast ? 'text-gray-500' : isToday ? 'text-indigo-700' : 'text-gray-800'
+                                    }`}>
+                                        {day.label}
+                                    </span>
+                                                        <span className={`ml-2 text-sm ${
+                                                            isPast ? 'text-gray-400' : 'text-gray-500'
+                                                        }`}>
+                                        {formatDisplayDate(day.date)}
+                                    </span>
+                                                    </div>
+                                                    {isToday && (
+                                                        <span className="ml-3 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                        Aujourd'hui
+                                    </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Time display or edit form */}
+                                                <div className="flex-1">
+                                                    {showOverrideForm && selectedDay === day.date ? (
+                                                        <div className="space-y-3 animate-fadeIn">
+                                                            {overrideIntervals.map((interval, index) => (
+                                                                <div key={index} className="flex items-center gap-2">
+                                                                    <div className="flex-1 flex items-center gap-2 bg-white p-2 rounded-lg border border-gray-200">
+                                                                        <input
+                                                                            type="time"
+                                                                            value={interval.start}
+                                                                            onChange={(e) => handleIntervalChange(index, 'start', e.target.value)}
+                                                                            className="w-28 px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                                        />
+                                                                        <span className="text-gray-400">→</span>
+                                                                        <input
+                                                                            type="time"
+                                                                            value={interval.end}
+                                                                            onChange={(e) => handleIntervalChange(index, 'end', e.target.value)}
+                                                                            className="w-28 px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                                        />
+                                                                    </div>
+                                                                    {overrideIntervals.length > 1 && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRemoveInterval(index)}
+                                                                            className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                                        >
+                                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                            </svg>
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                            <div className="flex items-center gap-2 mt-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleAddInterval}
+                                                                    className="inline-flex items-center px-3 py-1.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                                                                >
+                                                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                                    </svg>
+                                                                    Ajouter un intervalle
+                                                                </button>
+                                                                <div className="flex-1"></div>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setShowOverrideForm(false);
+                                                                        setSelectedDay('');
+                                                                        setOverrideIntervals([{ start: '09:00', end: '17:00' }]);
+                                                                    }}
+                                                                    className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 font-medium"
+                                                                >
+                                                                    Annuler
+                                                                </button>
+                                                                <button
+                                                                    onClick={handleSaveOverride}
+                                                                    className="px-4 py-1.5 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                                                                >
+                                                                    Enregistrer
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center">
+                                                            {displayTime ? (
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    {displayTime.split(', ').map((time, idx) => (
+                                                                        <span
+                                                                            key={idx}
+                                                                            className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg border border-gray-200"
+                                                                        >
+                                                        <svg className="w-3.5 h-3.5 mr-1.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                                            {time}
+                                                    </span>
+                                                                    ))}
+                                                                </div>
+                                                            ) : (
+                                                                <span className={`text-sm italic flex items-center ${
+                                                                    isPast ? 'text-gray-400' : 'text-gray-400'
+                                                                }`}>
+                                                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                                </svg>
+                                                Non travaillé
+                                            </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Action buttons */}
+                                                <div className="flex items-center gap-1 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {!isPast && !(showOverrideForm && selectedDay === day.date) && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleOpenOverrideForm(day.date, day.dayOfWeek)}
+                                                                className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                                                                title="Modifier les horaires"
+                                                            >
+                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                                </svg>
+                                                            </button>
+                                                            {overrideId && (
+                                                                <button
+                                                                    onClick={() => handleDeleteOverride(overrideId)}
+                                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                                    title="Supprimer l'exception"
+                                                                >
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                    </svg>
+                                                                </button>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                {/* Status badge for overrides */}
+                                                {overrideId && !showOverrideForm && (
+                                                    <div className="absolute -top-2 -right-2">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-white shadow-sm">
+                                        Exception
+                                    </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                     {/* Break Section */}
-                    {workingHoursExists && (
+                    {availabilityExists && (
                         <div className="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden mb-8">
                             <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
                                 <div className="flex justify-between items-center">
@@ -637,15 +1081,28 @@ const WorkingHoursPage: React.FC = () => {
                                         </svg>
                                         Pause café
                                     </h2>
-                                    <button
-                                        onClick={() => setShowBreakModal(true)}
-                                        className="inline-flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium shadow-sm"
-                                    >
-                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={breakData ? "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" : "M12 6v6m0 0v6m0-6h6m-6 0H6"} />
-                                        </svg>
-                                        {breakData ? 'Modifier' : 'Ajouter une pause'}
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setShowBreakModal(true)}
+                                            className="inline-flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium shadow-sm"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={breakData ? "M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" : "M12 6v6m0 0v6m0-6h6m-6 0H6"} />
+                                            </svg>
+                                            {breakData ? 'Modifier' : 'Ajouter une pause'}
+                                        </button>
+                                        {breakData && (
+                                            <button
+                                                onClick={handleDeleteBreak}
+                                                className="inline-flex items-center px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium"
+                                            >
+                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                                Supprimer
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             {breakData && (
@@ -674,7 +1131,7 @@ const WorkingHoursPage: React.FC = () => {
                     )}
 
                     {/* Blocked Slots Section */}
-                    {workingHoursExists && (
+                    {availabilityExists && (
                         <div className="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden mb-8">
                             <div
                                 className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 cursor-pointer hover:bg-gray-100/50 transition-colors"
@@ -688,8 +1145,8 @@ const WorkingHoursPage: React.FC = () => {
                                         Créneaux bloqués à venir
                                         {blockedSlots.length > 0 && (
                                             <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                        {blockedSlots.length}
-                      </span>
+                                                {blockedSlots.length}
+                                            </span>
                                         )}
                                     </h2>
                                     <div className="flex items-center gap-4">
@@ -719,13 +1176,10 @@ const WorkingHoursPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Collapsible content */}
-                            <div
-                                className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                                    showBlockedSlots ? 'max-h-96' : 'max-h-0'
-                                }`}
-                            >
-                                <div className="p-6">
+                            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${
+                                showBlockedSlots ? 'max-h-110' : 'max-h-0'
+                            }`}>
+                                <div className="p-6 max-h-100 overflow-auto">
                                     {loadingBlockedSlots ? (
                                         <div className="flex justify-center py-8">
                                             <svg className="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
@@ -750,27 +1204,21 @@ const WorkingHoursPage: React.FC = () => {
                                                         </div>
                                                         <div>
                                                             <div className="flex items-center space-x-2">
-                                <span className="text-sm font-medium text-gray-900">
-                                  {formatDate(slot.startDayDate)}
-                                </span>
+                                                                <span className="text-sm font-medium text-gray-900">
+                                                                    {formatDate(slot.startDateTime)}
+                                                                </span>
                                                                 <span className="text-gray-400">→</span>
                                                                 <span className="text-sm font-medium text-gray-900">
-                                  {formatDate(slot.endDayDate)}
-                                </span>
+                                                                    {formatDate(slot.endDateTime)}
+                                                                </span>
                                                             </div>
-                                                            <div className="flex items-center space-x-2 mt-1">
-                                <span className="text-xs text-gray-500">
-                                  {slot.startDateTime} - {slot.endDateTime}
-                                </span>
-                                                                {slot.reason && (
-                                                                    <>
-                                                                        <span className="text-gray-300">•</span>
-                                                                        <span className="text-xs text-gray-600">
-                                      {slot.reason}
-                                    </span>
-                                                                    </>
-                                                                )}
-                                                            </div>
+                                                            {slot.reason && (
+                                                                <div className="mt-1">
+                                                                    <span className="text-xs text-gray-600">
+                                                                        {slot.reason}
+                                                                    </span>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                     <button
@@ -802,45 +1250,20 @@ const WorkingHoursPage: React.FC = () => {
                     )}
 
                     {/* Calendar Preview Section */}
-                    <div className="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden">
-                        <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-                            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                                <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                Aperçu du calendrier
-                            </h2>
-                        </div>
-                        <div className="p-6">
-                            <div className="bg-gray-50 rounded-xl p-12 text-center border-2 border-dashed border-gray-200">
-                                <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <h3 className="mt-4 text-lg font-medium text-gray-900">
-                                    {workingHoursExists
-                                        ? "Calendrier des disponibilités"
-                                        : "Calendrier non configuré"}
-                                </h3>
-                                <p className="mt-2 text-sm text-gray-500 max-w-sm mx-auto">
-                                    {workingHoursExists
-                                        ? "Visualisez ici vos disponibilités et gérez vos rendez-vous"
-                                        : "Configurez vos heures de travail pour voir votre calendrier"}
-                                </p>
-                                {workingHoursExists && (
-                                    <div className="mt-4 flex justify-center gap-3">
-                                        <button
-                                            onClick={() => window.location.href = '/mydisponibility'}
-                                            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium shadow-sm"
-                                        >
-                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                            </svg>
-                                            Voir mes disponibilités
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button className="flex items-center justify-center gap-2 p-4 bg-white rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all"
+                                onClick={() => window.location.href = '/myavailability'}>
+                            <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-sm font-medium text-gray-700">Calendrier des disponibilités</span>
+                        </button>
+                        <button className="flex items-center justify-center gap-2 p-4 bg-white rounded-xl border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all">
+                            <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            <span className="text-sm font-medium text-gray-700">Planifier un événement</span>
+                        </button>
                     </div>
                 </main>
             </div>
@@ -859,7 +1282,6 @@ const WorkingHoursPage: React.FC = () => {
                 />
             )}
 
-            {/* Modal Pause café */}
             {showBreakModal && (
                 <AddBreakModal
                     onClose={() => setShowBreakModal(false)}
@@ -874,4 +1296,4 @@ const WorkingHoursPage: React.FC = () => {
     );
 };
 
-export default WorkingHoursPage;
+export default PlanificationPage;

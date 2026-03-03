@@ -89,9 +89,12 @@ function Header() {
                             </span>
                         </Link>
                         <Link
-                            to="/workingHours"
-                            className="text-sm font-semibold leading-6 text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                        >
+                            to="/planification "
+                            className={`text-sm font-semibold leading-6 px-3 py-2 rounded-lg transition-colors ${
+                                isActive('/planification') || isActive('/myavailability')
+                                    ? 'bg-indigo-50 text-indigo-600'
+                                    : 'text-gray-900 hover:bg-gray-50'
+                            }`}                        >
                             <span className="flex items-center gap-2">
                               <svg
                                   className="w-5 h-5"
@@ -99,14 +102,21 @@ function Header() {
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
                               >
-                              <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M8 7V3m8 4V3m-9 8l2 2 4-4M5 8h14M5 8a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2v-9a2 2 0 00-2-2"
-                              />
-                            </svg>
-                                Disponibilités
+                                <circle
+                                    cx="12"
+                                    cy="12"
+                                    r="8"
+                                    strokeWidth={2}
+                                />
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 7v5l3 3"
+                                />
+                              </svg>
+
+                                Planification
                             </span>
                         </Link>
                         <Link

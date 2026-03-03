@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { calendarService } from '../../services/calendarService';
-import type { BreakFormData } from '../../models/Calendar';
+import { calendarService } from '../../services/calendarService.tsx';
+import type { BreakFormData } from '../../models/Calendar.tsx';
 
 interface AddBreakModalProps {
     onClose: () => void;

@@ -1,22 +1,22 @@
 // components/Header.tsx
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 
 function Header() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
     const handleLogout = () => {
-        logout();
-        navigate('/login');
+        localStorage.removeItem('token');
+        localStorage.removeItem('expert');
+        localStorage.removeItem('tokenExpiration');
+       navigate('/login');
     };
 
-    const isAuthenticated = !!user;
-
+    const isAuthenticated = !!localStorage.getItem('token');
+    const user={firstname:localStorage.getItem('firstname'),lastname:localStorage.getItem('lastname')}
     const isActive = (path: string) => location.pathname === path;
 
     const getInitials = () => {

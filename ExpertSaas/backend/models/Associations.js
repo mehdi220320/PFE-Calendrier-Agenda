@@ -1,6 +1,7 @@
 const User = require("./User");
 const Token = require("./Token");
-const WorkingHours = require("../agenda/WorkingHours");
+const Availability = require("../agenda/Availability");
+const AvailabilityOverride = require("../agenda/AvailabilityOverride");
 const BlockedSlot = require("../agenda/BlockedSlot");
 const Break = require("../agenda/Break");
 
@@ -13,13 +14,22 @@ Token.belongsTo(User, {
     foreignKey: "userId",
 });
 
-User.hasOne(WorkingHours,{
+User.hasOne(Availability,{
     foreignKey: "userId",
     onDelete: "CASCADE",
 });
-WorkingHours.belongsTo(User, {
+Availability.belongsTo(User, {
     foreignKey: "userId",
 });
+
+User.hasOne(AvailabilityOverride,{
+    foreignKey: "userId",
+    onDelete: "CASCADE",
+});
+AvailabilityOverride.belongsTo(User, {
+    foreignKey: "userId",
+});
+
 
 User.hasOne(Break,{
     foreignKey: "userId",
