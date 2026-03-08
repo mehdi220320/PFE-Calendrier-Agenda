@@ -526,7 +526,7 @@ const Users = () => {
                 </main>
             </div>
 
-            {/* Add User Component */}
+            {/* Add User component */}
             <AddUser
                 show={showCreateModal}
                 onClose={() => setShowCreateModal(false)}

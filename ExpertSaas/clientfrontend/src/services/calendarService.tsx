@@ -92,7 +92,6 @@ export const calendarService = {
         await api.delete('/deleteBreak');
     },
 
-    // NEW: AvailabilityOverride methods
     addAvailabilityOverride: async (data: AvailabilityOverrideFormData): Promise<AvailabilityOverride> => {
         const response = await api.post('/addAvailabilityOverride', data);
         return response.data.availabilityOverride;
@@ -118,7 +117,7 @@ export const calendarService = {
     },
 
     getDisponibility: async (): Promise<DisponibilityData> => {
-        const response = await api.get('/disponibility');
+        const response = await api.get('/availability');
         return response.data;
     }
 };
