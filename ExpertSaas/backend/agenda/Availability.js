@@ -16,7 +16,7 @@ const Availability = sequelize.define("Availability", {
         }
     },
     dayOfWeek: {
-        type: DataTypes.JSON, // ou DataTypes.JSONB pour PostgreSQL
+        type: DataTypes.JSON,
         allowNull: false,
         defaultValue: [1],
         validate: {

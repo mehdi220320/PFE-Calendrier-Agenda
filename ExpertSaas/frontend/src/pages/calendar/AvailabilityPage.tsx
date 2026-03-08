@@ -34,7 +34,6 @@ const AvailabilityPage: React.FC = () => {
         }
     };
 
-    // Helper to get override for a specific date
     const getOverrideForDate = (date: Date): AvailabilityOverride | undefined => {
         if (!disponibilityData?.availabilityoverride) return undefined;
 
@@ -49,28 +48,6 @@ const AvailabilityPage: React.FC = () => {
         return !!getOverrideForDate(date);
     };
 
-    // Get working hours for a specific date (considering overrides)
-    const getWorkingHoursForDate = (date: Date): { start: string; end: string } | null => {
-        const override = getOverrideForDate(date);
-
-        if (override && override.workingTimes.length > 0) {
-            // For multiple intervals, we consider the earliest start and latest end
-            const start = override.workingTimes.reduce((earliest, current) =>
-                current.start < earliest ? current.start : earliest, override.workingTimes[0].start);
-            const end = override.workingTimes.reduce((latest, current) =>
-                current.end > latest ? current.end : latest, override.workingTimes[0].end);
-            return { start, end };
-        }
-
-        if (disponibilityData?.availability && isDefaultWorkingDay(date)) {
-            return {
-                start: disponibilityData.availability.startTime,
-                end: disponibilityData.availability.endTime
-            };
-        }
-
-        return null;
-    };
 
     const isDefaultWorkingDay = (date: Date): boolean => {
         if (!disponibilityData?.availability) return false;

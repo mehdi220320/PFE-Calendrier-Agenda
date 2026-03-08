@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { calendarService } from '../../services/calendarService.tsx';
+import { calendarService } from '../../../services/calendarService.tsx';
 
 interface AddBlockedSlotProps {
     onClose: () => void;

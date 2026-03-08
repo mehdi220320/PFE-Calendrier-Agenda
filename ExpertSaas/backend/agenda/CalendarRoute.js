@@ -5,7 +5,6 @@ const Availability=require("./Availability");
 const AvailabilityOverride=require("./AvailabilityOverride");
 const BlockedSlot=require("./BlockedSlot");
 const Break=require("./Break");
-require('dotenv').config();
 const { Op } = require("sequelize");
 
 const { authentication } = require('../middleware/authMiddleware');

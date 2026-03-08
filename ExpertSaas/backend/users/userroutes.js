@@ -238,10 +238,9 @@ async function sendAccountCreationEmail(userEmail, userFirstname, generatedPassw
 
     await transporter.sendMail(mailOptions);
 }
-router.use(adminAuthorization);
 
 
-router.post('/adduser', async (req, res) => {
+router.post('/adduser',adminAuthorization, async (req, res) => {
     try {
         const { firstname, lastname, email, phone, role  } = req.body;
         const password= generatePassword(12)
@@ -277,7 +276,7 @@ router.post('/adduser', async (req, res) => {
         res.status(500).send({ message: e.message });
     }
 });
-router.get('/all',async (req,res)=>{
+router.get('/all',adminAuthorization,async (req,res)=>{
     try {
         const users=await User.findAll();
         res.status(201).send({
@@ -286,6 +285,15 @@ router.get('/all',async (req,res)=>{
         })
     }catch (e) {
         res.status(500).send({ message: e.message });
+    }
+})
+
+router.get('/experts',async(req,res)=>{
+    try {
+        const users=await User.findAll({where: {role: "expert"}});
+        res.send({experts:users})
+    }catch (e) {
+        res.send({message:e.message});
     }
 })
 
