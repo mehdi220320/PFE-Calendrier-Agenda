@@ -1,3 +1,5 @@
+import type {Meeting} from "./Meeting.tsx";
+
 export interface Availability {
     id?: string;
     userId: string;
@@ -7,15 +9,6 @@ export interface Availability {
     slotDuration: number;
 }
 
-export interface AvailabilityFormData {
-    dayOfWeek: number[];
-    startTime: string;
-    endTime: string;
-    slotDuration: number;
-}
-
-
-
 export interface BlockedSlot {
     id?: string;
     userId: string;
@@ -24,25 +17,12 @@ export interface BlockedSlot {
     reason?: string;
 }
 
-export interface BlockedSlotFormData {
-    startDateTime: string;
-    endDateTime: string;
-    reason: string;
-}
-
 export interface Break {
     id?: string;
     userId: string;
     startAt: string;
     endAt: string;
 }
-
-export interface BreakFormData {
-    startAt: string;
-    endAt: string;
-}
-
-
 
 export interface TimeSlot {
     date: Date;
@@ -64,6 +44,7 @@ export interface DisponibilityData {
     availability: Availability | null;
     break: Break | null;
     availabilityoverride: AvailabilityOverride [];
+    meetings: Meeting[] ;
 }
 
 export interface AvailabilityOverride {
@@ -78,8 +59,5 @@ export interface WorkingInterval {
     end: string;
 }
 
-export interface AvailabilityOverrideFormData {
-    day: string;
-    workingTimes: WorkingInterval[];
-}
+
 

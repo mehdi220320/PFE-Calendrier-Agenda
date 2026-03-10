@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { google } = require('googleapis');
 const { authentication } = require('../middleware/authMiddleware');
-const Expert = require('../models/User');
 
 router.use(authentication);
 

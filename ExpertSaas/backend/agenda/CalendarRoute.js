@@ -5,13 +5,13 @@ const Availability=require("./Availability");
 const AvailabilityOverride=require("./AvailabilityOverride");
 const BlockedSlot=require("./BlockedSlot");
 const Break=require("./Break");
+const Meeting=require("../meeting/Meeting");
 const { Op } = require("sequelize");
 
 const { authentication } = require('../middleware/authMiddleware');
 
-router.use(authentication);
 
-router.post("/addAvailability", async (req, res) => {
+router.post("/addAvailability",authentication, async (req, res) => {
     try {
 
         const {dayOfWeek, startTime, endTime, slotDuration } = req.body;
@@ -43,7 +43,7 @@ router.post("/addAvailability", async (req, res) => {
 });
 
 
-router.patch("/updateAvailability", async (req, res) => {
+router.patch("/updateAvailability",authentication, async (req, res) => {
     try {
         const availability = await Availability.findOne({
             where: { userId: req.user.userId }
@@ -65,7 +65,7 @@ router.patch("/updateAvailability", async (req, res) => {
     }
 });
 
-router.get('/Availability', async (req, res) => {
+router.get('/Availability',authentication, async (req, res) => {
     try {
         const availability = await Availability.findOne({
             where: { userId: req.user.userId }
@@ -81,7 +81,7 @@ router.get('/Availability', async (req, res) => {
     }
 });
 
-router.post("/addBlockedSlot", async (req, res) => {
+router.post("/addBlockedSlot",authentication, async (req, res) => {
     try {
         const { startDateTime, endDateTime, reason } = req.body;
         const userId = req.user.userId;
@@ -123,7 +123,7 @@ router.post("/addBlockedSlot", async (req, res) => {
     }
 });
 
-router.post("/addBreak", async (req, res) => {
+router.post("/addBreak",authentication, async (req, res) => {
     try {
         const {  startAt, endAt} = req.body;
         const userId=req.user.userId
@@ -146,7 +146,7 @@ router.post("/addBreak", async (req, res) => {
     }
 });
 
-router.patch("/updateBreak", async (req, res) => {
+router.patch("/updateBreak",authentication, async (req, res) => {
     try {
         const bbreak= await Break.findOne({
             where: { userId: req.user.userId }
@@ -168,7 +168,7 @@ router.patch("/updateBreak", async (req, res) => {
     }
 });
 
-router.delete("/deleteBreak", async (req, res) => {
+router.delete("/deleteBreak",authentication, async (req, res) => {
     try {
         const bbreak= await Break.findOne({
             where: { userId: req.user.userId }
@@ -188,7 +188,7 @@ router.delete("/deleteBreak", async (req, res) => {
     }
 });
 
-router.get("/Break", async (req, res) => {
+router.get("/Break",authentication, async (req, res) => {
     try {
         const bbreak= await Break.findOne({
             where: { userId: req.user.userId }
@@ -202,7 +202,7 @@ router.get("/Break", async (req, res) => {
     }
 });
 
-router.get("/allBlockedSlot", async (req, res) => {
+router.get("/allBlockedSlot",authentication, async (req, res) => {
     try {
         const blockedSlot = await BlockedSlot.findAll({
             where: { userId: req.user.userId }
@@ -214,7 +214,7 @@ router.get("/allBlockedSlot", async (req, res) => {
     }
 });
 
-router.get("/checkAvailabilityExists", async (req, res) => {
+router.get("/checkAvailabilityExists",authentication, async (req, res) => {
     try {
         const availability = await Availability.findOne({
             where: { userId: req.user.userId }
@@ -230,7 +230,7 @@ router.get("/checkAvailabilityExists", async (req, res) => {
     }
 });
 
-router.delete("/deleteBlockedSlot", async (req, res) => {
+router.delete("/deleteBlockedSlot",authentication, async (req, res) => {
     try {
         const { blockedSlotId } = req.body;
         const blockedSlot = await BlockedSlot.findByPk(blockedSlotId);
@@ -246,7 +246,7 @@ router.delete("/deleteBlockedSlot", async (req, res) => {
     }
 });
 
-router.get("/disponibility", async (req, res) => {
+router.get("/disponibility",authentication, async (req, res) => {
     try {
         const userId=req.user.userId;
         const blockedSlots = await BlockedSlot.findAll({
@@ -282,7 +282,7 @@ router.get("/disponibility", async (req, res) => {
     }
 });
 
-router.post("/addAvailabilityOverride", async (req, res) => {
+router.post("/addAvailabilityOverride",authentication, async (req, res) => {
     try {
         const { day, workingTimes } = req.body;
         const userId = req.user.userId;
@@ -316,7 +316,7 @@ router.post("/addAvailabilityOverride", async (req, res) => {
     }
 });
 
-router.patch("/updateAvailabilityOverride/:id", async (req, res) => {
+router.patch("/updateAvailabilityOverride/:id",authentication, async (req, res) => {
     try {
         const { id } = req.params;
         const { day, workingTimes } = req.body;
@@ -345,7 +345,7 @@ router.patch("/updateAvailabilityOverride/:id", async (req, res) => {
     }
 });
 
-router.delete("/deleteAvailabilityOverride/:id", async (req, res) => {
+router.delete("/deleteAvailabilityOverride/:id",authentication, async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.userId;
@@ -366,6 +366,53 @@ router.delete("/deleteAvailabilityOverride/:id", async (req, res) => {
         res.status(400).send({ message: e.message });
     }
 });
+
+router.get("/disponibility/:id", async (req, res) => {
+    try {
+        const userId=req.params.id;
+        const blockedSlots = await BlockedSlot.findAll({
+            where: {
+                userId: userId,
+                startDateTime: {
+                    [Op.gte]: new Date().setHours(0, 0, 0, 0)
+                }
+            }
+        });
+        const availability = await Availability.findOne({
+            where: { userId: userId }
+        });
+        const availabilityoverride = await AvailabilityOverride.findAll({
+            where: {
+                userId: userId,
+                day: {
+                    [Op.gte]: new Date().setHours(0, 0, 0, 0)
+                }
+            }
+        });
+        const bbreak = await Break.findOne({
+            where: { userId: userId }
+        });
+        const meetings=await Meeting.findAll({
+            where:{
+                expert: userId,
+                date: {
+                    [Op.gte]: new Date().setHours(0, 0, 0, 0)
+                }
+            }
+        })
+        res.status(200).send({
+            blockSlots: blockedSlots,
+            availability: availability,
+            availabilityoverride:availabilityoverride,
+            break: bbreak,
+            meetings:meetings
+        });
+    } catch (e) {
+        res.status(400).send({ message: e.message });
+    }
+});
+
+
 
 module.exports = router;
 

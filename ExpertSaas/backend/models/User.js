@@ -31,7 +31,7 @@ const User = sequelize.define("User", {
         defaultValue: true
     },
     role: {
-        type: DataTypes.ENUM("admin", "expert","user"),
+        type: DataTypes.ENUM("admin", "expert", "user"),
         defaultValue: "user"
     }
 
@@ -45,9 +45,18 @@ const User = sequelize.define("User", {
                 user.password = await bcrypt.hash(user.password, 10);
             }
         }
+    },
+
+    defaultScope: {
+        attributes: { exclude: ["password"] }
+    },
+
+    scopes: {
+        withPassword: {
+            attributes: {}
+        }
     }
 });
-
 User.prototype.comparePassword = async function (password) {
     return await bcrypt.compare(password, this.password);
 };

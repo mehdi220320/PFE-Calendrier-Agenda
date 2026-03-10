@@ -111,4 +111,99 @@ router.get('meet/:id',async(req,res)=>{
 })
 
 
+
+//
+//
+// // Update meeting
+// router.put('/update/:id', async (req, res) => {
+//     try {
+//         const meeting = await Meeting.findByPk(req.params.id);
+//         if (!meeting) {
+//             return res.status(404).send({ message: "Meeting not found" });
+//         }
+//
+//         await meeting.update(req.body);
+//         res.status(200).send({ meeting, message: "Meeting updated successfully" });
+//     } catch (e) {
+//         res.status(400).send(e.message);
+//     }
+// });
+//
+// // Delete meeting
+// router.delete('/delete/:id', async (req, res) => {
+//     try {
+//         const meeting = await Meeting.findByPk(req.params.id);
+//         if (!meeting) {
+//             return res.status(404).send({ message: "Meeting not found" });
+//         }
+//
+//         await meeting.destroy();
+//         res.status(200).send({ message: "Meeting deleted successfully" });
+//     } catch (e) {
+//         res.status(400).send(e.message);
+//     }
+// });
+//
+// // Get meetings by expert
+// router.get('/expert/:expertId', async (req, res) => {
+//     try {
+//         const meetings = await Meeting.findAll({
+//             where: { expert: req.params.expertId },
+//             order: [['date', 'DESC']]
+//         });
+//         res.status(200).send({ meetings });
+//     } catch (e) {
+//         res.status(400).send(e.message);
+//     }
+// });
+//
+// // Get meetings by creator
+// router.get('/creator/:creatorEmail', async (req, res) => {
+//     try {
+//         const meetings = await Meeting.findAll({
+//             where: { creator: req.params.creatorEmail },
+//             order: [['date', 'DESC']]
+//         });
+//         res.status(200).send({ meetings });
+//     } catch (e) {
+//         res.status(400).send(e.message);
+//     }
+// });
+//
+// // Get meetings by date range
+// router.get('/range', async (req, res) => {
+//     try {
+//         const { startDate, endDate } = req.query;
+//         const meetings = await Meeting.findAll({
+//             where: {
+//                 date: {
+//                     [Op.between]: [new Date(startDate), new Date(endDate)]
+//                 }
+//             },
+//             order: [['date', 'ASC']]
+//         });
+//         res.status(200).send({ meetings });
+//     } catch (e) {
+//         res.status(400).send(e.message);
+//     }
+// });
+//
+// // Update meeting status
+// router.patch('/status/:id', async (req, res) => {
+//     try {
+//         const { status } = req.body;
+//         const meeting = await Meeting.findByPk(req.params.id);
+//
+//         if (!meeting) {
+//             return res.status(404).send({ message: "Meeting not found" });
+//         }
+//
+//         meeting.status = status;
+//         await meeting.save();
+//
+//         res.status(200).send({ meeting, message: `Meeting status updated to ${status}` });
+//     } catch (e) {
+//         res.status(400).send(e.message);
+//     }
+// });
 module.exports = router;

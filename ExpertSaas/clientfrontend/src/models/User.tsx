@@ -7,6 +7,5 @@ interface User {
     picture: string | null;
     isActive: boolean;
     role: string;
-    createdAt: string;
-    updatedAt: string;
+
 }

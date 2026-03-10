@@ -293,7 +293,20 @@ router.get('/experts',async(req,res)=>{
         const users=await User.findAll({where: {role: "expert"}});
         res.send({experts:users})
     }catch (e) {
-        res.send({message:e.message});
+        res.status(500).send({message:e.message});
+    }
+})
+
+router.get('/expert/:id',async(req,res)=>{
+    try {
+        const id=req.params.id;
+        const expert=await User.findOne({where :{
+            id:id,role:"expert"
+            }})
+        if(!expert) res.status(501).send({message:"Expert not found"});
+        res.status(200).send({expert:expert})
+    }catch (e){
+        res.status(500).send({message:e.message});
     }
 })
 

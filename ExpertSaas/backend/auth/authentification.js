@@ -358,7 +358,7 @@ router.post('/login', async (req, res) => {
     try {
         const {email, password} = req.body;
         console.log({email, password})
-        const user = await User.findOne({where: {email}});
+        const user = await User.scope('withPassword').findOne({where: {email}});
 
         if (!user) {
             return res.status(404).send({message: 'User not found'});
