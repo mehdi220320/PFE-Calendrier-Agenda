@@ -3,7 +3,7 @@ const User = require("../models/User");
 const router = express.Router();
 const nodemailer = require('nodemailer');
 require('dotenv').config();
-const { adminAuthorization } = require('../middleware/authMiddleware');
+const { adminAuthorization,googleAuth } = require('../middleware/authMiddleware');
 
 
 function generatePassword(length = 12) {
@@ -239,7 +239,6 @@ async function sendAccountCreationEmail(userEmail, userFirstname, generatedPassw
     await transporter.sendMail(mailOptions);
 }
 
-
 router.post('/adduser',adminAuthorization, async (req, res) => {
     try {
         const { firstname, lastname, email, phone, role  } = req.body;
@@ -276,6 +275,7 @@ router.post('/adduser',adminAuthorization, async (req, res) => {
         res.status(500).send({ message: e.message });
     }
 });
+
 router.get('/all',adminAuthorization,async (req,res)=>{
     try {
         const users=await User.findAll();
@@ -288,7 +288,7 @@ router.get('/all',adminAuthorization,async (req,res)=>{
     }
 })
 
-router.get('/experts',async(req,res)=>{
+router.get('/experts',googleAuth,async(req,res)=>{
     try {
         const users=await User.findAll({where: {role: "expert"}});
         res.send({experts:users})
@@ -297,7 +297,7 @@ router.get('/experts',async(req,res)=>{
     }
 })
 
-router.get('/expert/:id',async(req,res)=>{
+router.get('/expert/:id',googleAuth,async(req,res)=>{
     try {
         const id=req.params.id;
         const expert=await User.findOne({where :{

@@ -11,10 +11,10 @@ export interface Meeting {
     createdAt?: string | Date;
     updatedAt?: string | Date;
     deletedAt?: string | Date | null;
-
 }
 
 export interface CreateMeetingData {
+    creator: string;
     summary?: string;
     expertId: string;
     description?: string;

@@ -9,8 +9,12 @@ const Meeting = sequelize.define("Meeting", {
     },
     summary:{type:DataTypes.STRING, allowNull:true},
     creator: {
-        type: DataTypes.STRING,
+        type: DataTypes.UUID,
         allowNull: false,
+        references: {
+            model: 'Users',
+            key: 'id'
+        },
     },
     expert:{
         type: DataTypes.UUID,
@@ -31,8 +35,28 @@ const Meeting = sequelize.define("Meeting", {
         }
     },
     description:{type:DataTypes.STRING, allowNull:true},
-    date: {type : DataTypes.DATE, allowNull:false},
+    date: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        validate: {
+            isDate: true,
+            isFuture(value) {
+                if (new Date(value) < new Date()) {
+                    throw new Error('Meeting date must be in the future');
+                }
+            }
+        }
+    },
     slotDuration:{type:DataTypes.INTEGER, defaultValue:15,allowNull:false},
+    meetUrl: {
+        type: DataTypes.STRING,
+        allowNull: false,
+    },
+    jitsiRoom:{
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
+    }
 
 });
 

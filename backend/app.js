@@ -284,8 +284,10 @@ app.post("/create-meeting", async (req, res) => {
                 ).toISOString(),
                 timeZone: "UTC",
             },
-            guestsCanModify: false,
-            attendees: [{ email }],
+            guestsCanModify: true,
+            guestsCanInviteOthers: true,
+            guestsCanSeeOtherGuests: true,
+            attendees: [{ email ,responseStatus: 'accepted'}],
             conferenceData: {
                 createRequest: {
                     requestId: "meet-" + Date.now(),

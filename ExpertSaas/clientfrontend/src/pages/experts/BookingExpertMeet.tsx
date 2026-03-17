@@ -17,7 +17,6 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
     const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-    const [creatorEmail, setCreatorEmail] = useState('');
     const [summary, setSummary] = useState('');
     const [description, setDescription] = useState('');
     const [loading, setLoading] = useState(false);
@@ -27,7 +26,6 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [slotDuration, setSlotDuration] = useState<number>(30);
 
-    // Fetch disponibility when component mounts or expertId changes
     useEffect(() => {
         if (expertId) {
             fetchDisponibility();
@@ -52,13 +50,16 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         }
     };
 
-    // Helper function to check if a slot is in the past
+
+    const jsDateDayToSystemDay = (jsDay: number): number => {
+        return jsDay === 0 ? 6 : jsDay - 1;
+    };
+
     const isSlotInPast = (slotDateTime: Date): boolean => {
         const now = new Date();
         return slotDateTime < now;
     };
 
-    // Helper function to check if a slot is already booked
     const isSlotBooked = useCallback((slotDateTime: Date): boolean => {
         if (!disponibilityData?.meetings) return false;
 
@@ -69,13 +70,10 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
             const meetingStart = new Date(meeting.date);
             const meetingEnd = new Date(meetingStart);
             meetingEnd.setMinutes(meetingEnd.getMinutes() + meeting.slotDuration);
-
-            // Check if slots overlap
             return (slotDateTime < meetingEnd && slotEndTime > meetingStart);
         });
     }, [disponibilityData?.meetings, slotDuration]);
 
-    // Helper function to check if a slot is blocked
     const isSlotBlocked = useCallback((slotDateTime: Date): boolean => {
         if (!disponibilityData?.blockSlots) return false;
 
@@ -85,13 +83,10 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         return disponibilityData.blockSlots.some(blocked => {
             const blockedStart = new Date(blocked.startDateTime);
             const blockedEnd = new Date(blocked.endDateTime);
-
-            // Check if slot overlaps with blocked period
             return (slotDateTime < blockedEnd && slotEndTime > blockedStart);
         });
     }, [disponibilityData?.blockSlots, slotDuration]);
 
-    // Generate slots from a time interval
     const generateSlotsFromInterval = useCallback((
         date: Date,
         startTime: string,
@@ -120,7 +115,6 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
             const slotStartMinutes = minutes;
             const slotEndMinutes = minutes + slotDuration;
 
-            // Skip if slot overlaps with break
             if (breakTime && breakStartMinutes !== -1 && breakEndMinutes !== -1) {
                 if ((slotStartMinutes >= breakStartMinutes && slotStartMinutes < breakEndMinutes) ||
                     (slotEndMinutes > breakStartMinutes && slotEndMinutes <= breakEndMinutes) ||
@@ -135,20 +129,9 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
             const slotDateTime = new Date(date);
             slotDateTime.setHours(hour, minute, 0, 0);
 
-            // Skip if the slot is in the past
-            if (isSlotInPast(slotDateTime)) {
-                continue;
-            }
-
-            // Check if slot is blocked
-            if (isSlotBlocked(slotDateTime)) {
-                continue;
-            }
-
-            // Check if slot is already booked
-            if (isSlotBooked(slotDateTime)) {
-                continue;
-            }
+            if (isSlotInPast(slotDateTime)) continue;
+            if (isSlotBlocked(slotDateTime)) continue;
+            if (isSlotBooked(slotDateTime)) continue;
 
             slots.push({
                 date: new Date(date),
@@ -161,28 +144,23 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         return slots;
     }, [slotDuration, isSlotBlocked, isSlotBooked]);
 
-    // Generate slots for a specific date
     const generateSlotsForDate = useCallback((date: Date): TimeSlot[] => {
         if (!disponibilityData) return [];
 
         const dateStr = date.toDateString();
-        const dayOfWeek = date.getDay();
+        const systemDayOfWeek = jsDateDayToSystemDay(date.getDay());
         const slots: TimeSlot[] = [];
 
-        // Check for override
         const dayOverride = disponibilityData.availabilityoverride?.find(
             override => new Date(override.day).toDateString() === dateStr
         );
 
         if (dayOverride) {
-            // Use override working times
             dayOverride.workingTimes.forEach(interval => {
                 const slotsFromInterval = generateSlotsFromInterval(date, interval.start, interval.end);
                 slots.push(...slotsFromInterval);
             });
-        }
-        // Check if it's a working day
-        else if (disponibilityData.availability?.dayOfWeek.includes(dayOfWeek)) {
+        } else if (disponibilityData.availability?.dayOfWeek.includes(systemDayOfWeek)) {
             const availability = disponibilityData.availability;
             const slotsFromInterval = generateSlotsFromInterval(
                 date,
@@ -196,7 +174,6 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         return slots;
     }, [disponibilityData, generateSlotsFromInterval]);
 
-    // Memoize meetings for better performance
     const meetingsByDate = useMemo(() => {
         if (!disponibilityData?.meetings) return new Map<string, Meeting[]>();
 
@@ -204,47 +181,38 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         disponibilityData.meetings.forEach(meeting => {
             const meetingDate = new Date(meeting.date);
             const dateKey = meetingDate.toDateString();
-
-            if (!meetingsMap.has(dateKey)) {
-                meetingsMap.set(dateKey, []);
-            }
+            if (!meetingsMap.has(dateKey)) meetingsMap.set(dateKey, []);
             meetingsMap.get(dateKey)?.push(meeting);
         });
 
         return meetingsMap;
     }, [disponibilityData?.meetings]);
 
-    // Check if a date has any available slots
     const hasAvailableSlots = useCallback((date: Date): boolean => {
         if (!disponibilityData) return false;
 
         const dateStr = date.toDateString();
-        const dayOfWeek = date.getDay();
+        const systemDayOfWeek = jsDateDayToSystemDay(date.getDay());
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Skip past dates
         if (date < today) return false;
 
-        // Check for override
         const dayOverride = disponibilityData.availabilityoverride?.find(
             override => new Date(override.day).toDateString() === dateStr
         );
 
         if (dayOverride) {
-            // Check if override has any working times
             return dayOverride.workingTimes.length > 0;
         }
 
-        // Check if it's a working day
-        if (!disponibilityData.availability?.dayOfWeek.includes(dayOfWeek)) {
+        if (!disponibilityData.availability?.dayOfWeek.includes(systemDayOfWeek)) {
             return false;
         }
 
         return true;
     }, [disponibilityData]);
 
-    // Get available dates for calendar display
     const availableDates = useMemo(() => {
         if (!disponibilityData) return new Set<string>();
 
@@ -255,12 +223,9 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         const next90Days = new Date(today);
         next90Days.setDate(today.getDate() + 90);
 
-        // Check each day in the next 90 days
         for (let d = new Date(today); d <= next90Days; d.setDate(d.getDate() + 1)) {
             const currentDate = new Date(d);
-
             if (hasAvailableSlots(currentDate)) {
-                // Even if the day has availability, we need to check if any slots are actually free
                 const slots = generateSlotsForDate(currentDate);
                 if (slots.length > 0) {
                     availableSet.add(currentDate.toDateString());
@@ -271,7 +236,6 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         return availableSet;
     }, [disponibilityData, hasAvailableSlots, generateSlotsForDate]);
 
-    // Calculate available slots for selected date
     const calculateAvailableSlots = useCallback(() => {
         if (!disponibilityData || !selectedDate) {
             setAvailableSlots([]);
@@ -279,8 +243,6 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         }
 
         const slots = generateSlotsForDate(selectedDate);
-
-        // Sort slots by time
         slots.sort((a, b) => {
             if (a.hour !== b.hour) return a.hour - b.hour;
             return a.minute - b.minute;
@@ -289,7 +251,6 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         setAvailableSlots(slots);
     }, [selectedDate, disponibilityData, generateSlotsForDate]);
 
-    // Recalculate slots when date or disponibility data changes
     useEffect(() => {
         calculateAvailableSlots();
     }, [selectedDate, disponibilityData, calculateAvailableSlots]);
@@ -304,35 +265,18 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
     };
 
     const handleBooking = async () => {
-        if (!selectedSlot) {
-            setError('Veuillez sélectionner un créneau');
-            return;
-        }
-        if (!creatorEmail) {
-            setError('Veuillez entrer votre email');
-            return;
-        }
+        if (!selectedSlot) { setError('Veuillez sélectionner un créneau'); return; }
 
-        // Double-check if slot is still available before booking
         const meetingDate = new Date(selectedSlot.date);
         meetingDate.setHours(selectedSlot.hour, selectedSlot.minute, 0, 0);
 
-        if (isSlotInPast(meetingDate)) {
-            setError('Ce créneau est déjà passé');
-            return;
-        }
-
+        if (isSlotInPast(meetingDate)) { setError('Ce créneau est déjà passé'); return; }
         if (isSlotBooked(meetingDate)) {
             setError('Ce créneau vient d\'être réservé. Veuillez en sélectionner un autre.');
-            // Refresh disponibility
             fetchDisponibility();
             return;
         }
-
-        if (isSlotBlocked(meetingDate)) {
-            setError('Ce créneau n\'est plus disponible');
-            return;
-        }
+        if (isSlotBlocked(meetingDate)) { setError('Ce créneau n\'est plus disponible'); return; }
 
         setBookingLoading(true);
         setError(null);
@@ -340,32 +284,23 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
 
         try {
             const meetingData: CreateMeetingData = {
-                creator: creatorEmail,
                 expertId: expertId!,
                 date: meetingDate.toISOString(),
                 slotDuration: slotDuration,
                 summary: summary || undefined,
-                description: description || undefined
+                description: description || undefined,
             };
 
             await meetingService.createMeeting(meetingData);
-
             setSuccessMessage('Réunion créée avec succès ! Un email de confirmation a été envoyé.');
-
-            // Reset form
-            setCreatorEmail('');
             setSummary('');
             setDescription('');
             setSelectedSlot(null);
             setSelectedDate(null);
-
-            // Refresh disponibility data
             await fetchDisponibility();
-
         } catch (err: any) {
             if (err.response?.status === 409) {
                 setError('Ce créneau vient d\'être réservé. Veuillez en sélectionner un autre.');
-                // Refresh disponibility to show updated slots
                 fetchDisponibility();
             } else {
                 setError(err.response?.data?.message || 'Erreur lors de la création de la réunion');
@@ -375,25 +310,14 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         }
     };
 
-    const formatTime = (hour: number, minute: number) => {
-        return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-    };
+    const formatTime = (hour: number, minute: number) =>
+        `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
 
-    const formatDateLong = (date: Date) => {
-        return date.toLocaleDateString('fr-FR', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    };
+    const formatDateLong = (date: Date) =>
+        date.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-    const formatDateMonth = (date: Date) => {
-        return date.toLocaleDateString('fr-FR', {
-            month: 'long',
-            year: 'numeric'
-        });
-    };
+    const formatDateMonth = (date: Date) =>
+        date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 
     const getDaysInMonth = (date: Date) => {
         const year = date.getFullYear();
@@ -401,8 +325,7 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         const firstDay = new Date(year, month, 1);
         const lastDay = new Date(year, month + 1, 0);
         const daysInMonth = lastDay.getDate();
-        const startingDayOfWeek = firstDay.getDay(); // 0 = Dimanche
-
+        const startingDayOfWeek = firstDay.getDay();
         return { daysInMonth, startingDayOfWeek };
     };
 
@@ -412,24 +335,16 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Add empty cells for days before the first day of the month
-        for (let i = 0; i < startingDayOfWeek; i++) {
-            days.push(null);
-        }
+        for (let i = 0; i < startingDayOfWeek; i++) days.push(null);
 
-        // Add days of the month
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-            const isAvailable = availableDates.has(date.toDateString());
-            const isPast = date < today;
-            const isSelected = selectedDate?.toDateString() === date.toDateString();
-
             days.push({
                 date,
                 day,
-                isAvailable,
-                isPast,
-                isSelected
+                isAvailable: availableDates.has(date.toDateString()),
+                isPast: date < today,
+                isSelected: selectedDate?.toDateString() === date.toDateString()
             });
         }
 
@@ -443,8 +358,7 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
     const weekDays = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 
     return (
-        <div className="mx-auto ">
-            {/* Header */}
+        <div className="mx-auto">
             <div className="mb-8">
                 <p className="text-gray-600 mt-2">Sélectionnez un créneau disponible avec l'expert</p>
             </div>
@@ -472,28 +386,18 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Calendrier */}
                 <div className="lg:col-span-2">
                     <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
-                        {/* En-tête du calendrier */}
                         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4">
                             <div className="flex items-center justify-between">
-                                <h2 className="text-xl font-semibold text-white">
-                                    {formatDateMonth(currentMonth)}
-                                </h2>
+                                <h2 className="text-xl font-semibold text-white">{formatDateMonth(currentMonth)}</h2>
                                 <div className="flex space-x-2">
-                                    <button
-                                        onClick={() => changeMonth(-1)}
-                                        className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
-                                    >
+                                    <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                         </svg>
                                     </button>
-                                    <button
-                                        onClick={() => changeMonth(1)}
-                                        className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
-                                    >
+                                    <button onClick={() => changeMonth(1)} className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white">
                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                         </svg>
@@ -502,7 +406,6 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
                             </div>
                         </div>
 
-                        {/* Jours de la semaine */}
                         <div className="grid grid-cols-7 gap-px bg-gray-200">
                             {weekDays.map((day, index) => (
                                 <div key={index} className="bg-gray-50 py-3 text-center">
@@ -511,7 +414,6 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
                             ))}
                         </div>
 
-                        {/* Grille du calendrier */}
                         {loading ? (
                             <div className="flex justify-center items-center h-96">
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -532,9 +434,7 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
                                                             : 'opacity-40 cursor-not-allowed bg-gray-50'
                                                 }`}
                                             >
-                                                <span className={`text-lg font-semibold ${
-                                                    day.isSelected ? 'text-white' : 'text-gray-700'
-                                                }`}>
+                                                <span className={`text-lg font-semibold ${day.isSelected ? 'text-white' : 'text-gray-700'}`}>
                                                     {day.day}
                                                 </span>
                                                 {day.isAvailable && !day.isPast && !day.isSelected && (
@@ -561,7 +461,6 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
                         )}
                     </div>
 
-                    {/* Légende */}
                     <div className="flex items-center space-x-6 mt-4 text-sm">
                         <div className="flex items-center">
                             <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
@@ -578,7 +477,6 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
                     </div>
                 </div>
 
-                {/* Panneau de réservation */}
                 <div className="lg:col-span-1">
                     <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 sticky top-32">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -589,9 +487,7 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
                             <>
                                 <div className="mb-4 p-3 bg-indigo-50 rounded-xl">
                                     <p className="text-sm text-indigo-600 font-medium">Date sélectionnée</p>
-                                    <p className="font-semibold text-indigo-900">
-                                        {formatDateLong(selectedDate)}
-                                    </p>
+                                    <p className="font-semibold text-indigo-900">{formatDateLong(selectedDate)}</p>
                                 </div>
 
                                 {availableSlots.length > 0 ? (
@@ -611,9 +507,7 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
                                                         <span className="text-lg font-semibold text-gray-900">
                                                             {formatTime(slot.hour, slot.minute)}
                                                         </span>
-                                                        <span className="text-sm text-gray-500 ml-2">
-                                                            ({slotDuration} min)
-                                                        </span>
+                                                        <span className="text-sm text-gray-500 ml-2">({slotDuration} min)</span>
                                                     </div>
                                                     {selectedSlot?.hour === slot.hour && selectedSlot?.minute === slot.minute && (
                                                         <svg className="w-5 h-5 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
@@ -636,68 +530,50 @@ function BookingExpertMeet({ expertId: propExpertId }: BookingExpertMeetProps) {
                         )}
 
                         {selectedSlot && (
-                            <>
-                                <div className="border-t border-gray-200 my-6 pt-6">
-                                    <h4 className="font-medium text-gray-900 mb-4">Vos informations</h4>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Email <span className="text-red-500">*</span>
-                                            </label>
-                                            <input
-                                                type="email"
-                                                value={creatorEmail}
-                                                onChange={(e) => setCreatorEmail(e.target.value)}
-                                                placeholder="votre@email.com"
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Sujet (optionnel)
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={summary}
-                                                onChange={(e) => setSummary(e.target.value)}
-                                                placeholder="Objet de la réunion"
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Description (optionnelle)
-                                            </label>
-                                            <textarea
-                                                value={description}
-                                                onChange={(e) => setDescription(e.target.value)}
-                                                placeholder="Décrivez brièvement le sujet de la réunion..."
-                                                rows={3}
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={handleBooking}
-                                            disabled={bookingLoading}
-                                            className={`w-full py-3 px-4 rounded-xl font-medium text-white transition-all transform hover:scale-[1.02] active:scale-[0.98]
-                                                ${bookingLoading
+                            <div className="border-t border-gray-200 my-6 pt-6">
+                                <h4 className="font-medium text-gray-900 mb-4">Vos informations</h4>
+                                <div className="space-y-4">
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Sujet (optionnel)</label>
+                                        <input
+                                            type="text"
+                                            value={summary}
+                                            onChange={(e) => setSummary(e.target.value)}
+                                            placeholder="Objet de la réunion"
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Description (optionnelle)</label>
+                                        <textarea
+                                            value={description}
+                                            onChange={(e) => setDescription(e.target.value)}
+                                            placeholder="Décrivez brièvement le sujet de la réunion..."
+                                            rows={3}
+                                            className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handleBooking}
+                                        disabled={bookingLoading}
+                                        className={`w-full py-3 px-4 rounded-xl font-medium text-white transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+                                            bookingLoading
                                                 ? 'bg-gray-400 cursor-not-allowed'
                                                 : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
-                                            }`}
-                                        >
-                                            {bookingLoading ? (
-                                                <span className="flex items-center justify-center">
-                                                    <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
-                                                    Réservation en cours...
-                                                </span>
-                                            ) : (
-                                                'Confirmer la réservation'
-                                            )}
-                                        </button>
-                                    </div>
+                                        }`}
+                                    >
+                                        {bookingLoading ? (
+                                            <span className="flex items-center justify-center">
+                                                <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
+                                                Réservation en cours...
+                                            </span>
+                                        ) : (
+                                            'Confirmer la réservation'
+                                        )}
+                                    </button>
                                 </div>
-                            </>
+                            </div>
                         )}
                     </div>
                 </div>

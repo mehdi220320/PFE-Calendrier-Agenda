@@ -1,5 +1,4 @@
 import React, { Suspense, lazy } from 'react';
-
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import Login from './pages/login/Login.tsx';
@@ -10,6 +9,8 @@ import Dashboard from './pages/dashboard/Dashboard.tsx';
 import CalendarPage from "./pages/calendar/Calendar.tsx";
 import PlanificationPage from "./pages/calendar/PlanificationPage.tsx";
 import AvailabilityPage from "./pages/calendar/AvailabilityPage.tsx";
+import MyMeetingView from "./pages/meeting/MyMeetingView.tsx";
+import JitsiRoom from "./pages/meeting/JitsiRoom.tsx";
 
 const Users = lazy(() => import('./admin/pages/Users.tsx'));
 const Meetings = lazy(() => import('./admin/pages/Meetings.tsx'));
@@ -27,20 +28,33 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
     return token ? children : <Navigate to="/login" replace />;
 };
 
+const RootRedirect = () => {
+    const token = localStorage.getItem('token');
+    return token ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
+};
+
 function App() {
     return (
         <Router>
             <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/planification" element={<PlanificationPage />} />
-
                 <Route path="/reset-password" element={<ResetPassword />} />
+
+                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                <Route path="/planification" element={<ProtectedRoute><PlanificationPage /></ProtectedRoute>} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
-                <Route path="/myavailability" element={<AvailabilityPage />} />
-
+                <Route path="/myavailability" element={<ProtectedRoute><AvailabilityPage /></ProtectedRoute>} />
+                <Route path="/mymeetings" element={<ProtectedRoute><MyMeetingView /></ProtectedRoute>} />
+                <Route
+                    path="/meetings/:jitsiRoom"
+                    element={
+                        <ProtectedRoute>
+                            <JitsiRoom />
+                        </ProtectedRoute>
+                    }
+                />
                 <Route
                     path="/admin/users"
                     element={
@@ -81,8 +95,10 @@ function App() {
                         </ProtectedRoute>
                     }
                 />
-                <Route path="/" element={<Navigate to="/login" replace />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
+                <Route path="/" element={<RootRedirect />} />
+
+                <Route path="*" element={<RootRedirect />} />
             </Routes>
         </Router>
     );

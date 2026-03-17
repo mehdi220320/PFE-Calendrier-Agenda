@@ -4,8 +4,8 @@ const Availability = require("../agenda/Availability");
 const AvailabilityOverride = require("../agenda/AvailabilityOverride");
 const BlockedSlot = require("../agenda/BlockedSlot");
 const Break = require("../agenda/Break");
-
-
+const GoogleAccount=require("./GoogleAccount")
+const  Meeting = require('../meeting/Meeting');
 User.hasOne(Token, {
     foreignKey: "userId",
     onDelete: "CASCADE",
@@ -45,4 +45,21 @@ User.hasMany(BlockedSlot, {
 });
 BlockedSlot.belongsTo(User, {
     foreignKey: "userId",
+});
+
+User.hasOne(GoogleAccount,{
+    foreignKey:"userId",
+    onDelete:"CASCADE"
+})
+GoogleAccount.belongsTo(User,{
+    foreignKey:"userId"
+})
+
+Meeting.belongsTo(User, {
+    foreignKey: "creator",
+    as: "creatorUser"
+});
+Meeting.belongsTo(User, {
+    foreignKey: "expert",
+    as: "expertUser"
 });

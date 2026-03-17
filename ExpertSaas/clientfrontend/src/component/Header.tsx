@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Bell, Briefcase, Calendar, Video, Menu, X, ChevronDown, MessageCircle, ThumbsUp, UserPlus, Clock } from 'lucide-react';
+import {authService} from "../services/authService.tsx";
 
 function Header() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -10,7 +11,6 @@ function Header() {
 
     const isActive = (path: string) => location.pathname === path;
 
-    // Close notifications when clicking outside
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
@@ -21,7 +21,6 @@ function Header() {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Sample notifications data
     const notifications = [
         {
             id: 1,
@@ -67,6 +66,7 @@ function Header() {
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
+    const logout = ()=> authService.logout();
     return (
         <header className="fixed top-0 left-0 right-0 bg-white z-50">
             {/* Header content with bg-gray-50 */}
@@ -101,9 +101,9 @@ function Header() {
                             </Link>
 
                             <Link
-                                to="/reunion"
+                                to="/meetings"
                                 className={`flex items-center space-x-2 text-sm font-medium px-3 py-2 rounded-md transition-colors ${
-                                    isActive('/reunion')
+                                    isActive('/meetings')
                                         ? 'text-blue-600 bg-blue-100'
                                         : 'text-gray-600 hover:text-blue-600 hover:bg-gray-200'
                                 }`}

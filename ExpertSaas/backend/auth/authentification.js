@@ -2,10 +2,12 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Token = require('../models/Token');
+const GoogleAccount = require('../models/GoogleAccount');
 const router = express.Router();
 const { Op } = require("sequelize");
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const { google } = require("googleapis");
 
 const generateResetCode = () => {
     return crypto.randomBytes(3).toString('hex').toUpperCase();
@@ -33,6 +35,107 @@ const generateAuthToken = async (user) => {
 
     return { token, expiresIn: jwtExpiresIn };
 };
+
+function generatePassword(length = 12) {
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+    let password = "";
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * charset.length);
+        password += charset[randomIndex];
+    }
+
+    return password;
+}
+
+
+const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT
+);
+
+router.get("/google", (req, res) => {
+    const url = oauth2Client.generateAuthUrl({
+        access_type: "offline",
+        scope: [
+            "https://www.googleapis.com/auth/calendar",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile"
+        ],
+        prompt: "consent"
+    });
+    res.redirect(url);
+});
+router.get("/google/callback", async (req, res) => {
+    const code = req.query.code;
+    try {
+        const { tokens } = await oauth2Client.getToken(code);
+        console.log("Tokens reçus avec succès");
+
+        oauth2Client.setCredentials(tokens);
+
+        const authenticatedClient = new google.auth.OAuth2(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET,
+            process.env.GOOGLE_REDIRECT
+        );
+        authenticatedClient.setCredentials(tokens);
+
+        const oauth2 = google.oauth2({ version: 'v2', auth: authenticatedClient });
+        let userInfo = null;
+
+        try {
+            userInfo = await oauth2.userinfo.get();
+            console.log("Infos utilisateur récupérées:", userInfo.data.email);
+        } catch (userInfoError) {
+            console.error("Erreur récupération infos utilisateur:", userInfoError.message);
+        }
+        let user=await User.findOne({where:{email:userInfo.data.email}});
+        if(!user) {
+             user = await User.create({
+                firstname: userInfo.data.given_name || userInfo.data.name.split(' ')[0] || '',
+                lastname: userInfo.data.family_name || userInfo.data.name.split(' ').slice(1).join(' ') || '',
+                email: userInfo.data.email,
+                password:generatePassword(),
+                picture: userInfo.data.picture, role: "user",
+                isActive: userInfo.data.email_verified,
+
+            })
+        }
+
+        let googleAccount = await GoogleAccount.findOne({
+            where: { googleId: userInfo.data.id }
+        });
+        if (!googleAccount) {
+            googleAccount = await GoogleAccount.create({
+                userId: user.id,
+                googleId: userInfo.data.id,
+                accessToken: tokens.access_token,
+                refreshToken: tokens.refresh_token,
+                tokenExpiry: tokens.expiry_date
+            });
+        } else {
+            await googleAccount.update({
+                accessToken: tokens.access_token,
+                tokenExpiry: tokens.expiry_date
+            });
+        }
+
+        const tokensDataEncoded = encodeURIComponent(JSON.stringify({access_token:tokens.access_token,expiry_date:tokens.expiry_date}));
+
+        res.redirect(`http://localhost:5173/login?connected=true&tokens=${tokensDataEncoded}`);
+
+    } catch (error) {
+        console.error('Erreur détaillée auth:', error);
+        res.redirect('http://localhost:5173?error=auth_failed');
+    }
+});
+
+
+
+
+
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
@@ -357,7 +460,7 @@ router.post('/reset-password', async (req, res) => {
 router.post('/login', async (req, res) => {
     try {
         const {email, password} = req.body;
-        console.log({email, password})
+
         const user = await User.scope('withPassword').findOne({where: {email}});
 
         if (!user) {

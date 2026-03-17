@@ -3,6 +3,10 @@ const router = express.Router();
 const Meeting=require('./Meeting')
 const User = require("../models/User");
 const nodemailer = require('nodemailer');
+const { authentication,googleAuth } = require('../middleware/authMiddleware');
+const { google } = require("googleapis");
+require('../models/associations');
+const { col,fn } = require("sequelize");
 
 async function sendMeetingCreationEmail(userEmail, description) {
     const transporter = nodemailer.createTransport({
@@ -75,26 +79,158 @@ router.get('/all',async(req,res)=>{
     }
 })
 
-router.post('/add',async (req,res)=>{
+router.post('/add', googleAuth, async (req, res) => {
     try {
-        const {creator,summary,expertId,description,date,slotDuration}=req.body;
+        const { summary, expertId, description, date, slotDuration, dateTime } = req.body;
+
+        const creator = req.user.id;
+        const tokens = req.googleTokens;
 
         const expert = await User.findOne({
-            where: {
-                id: expertId,
-                role: "expert"
-            }
+            where: { id: expertId, role: "expert" }
         });
-        if(!expertId){
-            res.status(400).send({ message: "Expert not found" });
-        }
-        const meet=await Meeting.create({creator:creator, summary:summary, expert:expert.id, description:description, date:date, slotDuration:slotDuration});
-        sendMeetingCreationEmail(creator,description);
-        sendMeetingCreationEmail(expert.email,description);
-        res.status(200).send({meet:meet,message:'The meeting is created succefully' });
 
-    }catch (e) {
-        res.status(404).send(e.message);
+        if (!expert) {
+            return res.status(400).send({ message: "Expert not found" });
+        }
+
+        let meetUrl = null;
+
+        if (tokens && tokens.accessToken) {
+            try {
+                const userOAuthClient = new google.auth.OAuth2(
+                    process.env.GOOGLE_CLIENT_ID,
+                    process.env.GOOGLE_CLIENT_SECRET,
+                    process.env.GOOGLE_REDIRECT
+                );
+
+                userOAuthClient.setCredentials({
+                    access_token: tokens.accessToken,
+                    refresh_token: tokens.refreshToken,
+                    expiry_date: tokens.expiryDate
+                });
+
+                const calendar = google.calendar({ version: "v3", auth: userOAuthClient });
+
+                const meetingDateTime = dateTime || date;
+                if (!meetingDateTime) {
+                    throw new Error('Meeting date/time is required');
+                }
+
+                const startTime = new Date(meetingDateTime);
+                const endTime = new Date(startTime.getTime() + (slotDuration || 30) * 60000);
+
+                const attendees = [
+                    {
+                        email: req.user.email,
+                        responseStatus: 'accepted',
+                        organizer: true
+                    },
+                    {
+                        email: expert.email,
+                        responseStatus: 'accepted'
+                    }
+                ];
+
+                const event = {
+                    summary: summary || `Réunion avec ${expert.email}`,
+                    description: description || `Réunion organisée par ${req.user.email}`,
+                    start: {
+                        dateTime: startTime.toISOString(),
+                        timeZone: "UTC",
+                    },
+                    end: {
+                        dateTime: endTime.toISOString(),
+                        timeZone: "UTC",
+                    },
+                    guestsCanModify: true,
+                    guestsCanInviteOthers: true,
+                    attendees: attendees,
+                    conferenceData: {
+                        createRequest: {
+                            requestId: `meet-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+                            conferenceSolutionKey: { type: "hangoutsMeet" },
+                        },
+                    },
+                };
+
+                const calendarResponse = await calendar.events.insert({
+                    calendarId: "primary",
+                    resource: event,
+                    conferenceDataVersion: 1,
+                    sendUpdates: "all"
+                });
+
+                meetUrl = calendarResponse.data.conferenceData?.entryPoints?.find(
+                    entry => entry.entryPointType === 'video'
+                )?.uri || null;
+
+            } catch (googleError) {
+                meetUrl = null;
+            }
+        }
+        const generateJitsiRoom = (expertId, creatorId, summary) => {
+            // Clean the summary to be URL-friendly
+            const cleanSummary = summary ?
+                summary.toLowerCase()
+                    .replace(/[^a-z0-9]/g, '-')  // Replace special chars with hyphens
+                    .replace(/-+/g, '-')           // Replace multiple hyphens with single
+                    .replace(/^-|-$/g, '')          // Remove leading/trailing hyphens
+                    .substring(0, 30)               // Limit length
+                : 'meeting';
+
+            const expertShort = expertId.toString().substring(0, 8);
+            const creatorShort = creatorId.toString().substring(0, 8);
+            const timestamp = Date.now();
+            const random = Math.random().toString(36).substring(2, 8);
+
+            const roomName = `${expertShort}-${creatorShort}-${cleanSummary}-${timestamp}-${random}`;
+
+            return roomName;
+        };
+
+        const jitsiRoom = generateJitsiRoom(expert.id, creator, summary);
+        const meet = await Meeting.create({
+            creator,
+            summary,
+            expert: expert.id,
+            description,
+            date: dateTime || date,
+            slotDuration: slotDuration || 30,
+            meetUrl,
+            jitsiRoom:jitsiRoom
+        });
+
+
+        await sendMeetingCreationEmail(req.user.email, meetUrl);
+        await sendMeetingCreationEmail(expert.email, meetUrl);
+
+
+        res.status(200).send({
+            meet,
+            meetUrl,
+            message: 'The meeting was created successfully',
+        });
+
+    } catch (e) {
+        if (e.message?.includes('invalid_token') || e.message?.includes('Invalid Credentials')) {
+            return res.status(401).json({
+                error: "Session expirée, reconnectez-vous",
+                code: "TOKEN_EXPIRED"
+            });
+        }
+
+        if (e.message?.includes('date')) {
+            return res.status(400).json({
+                error: "Date invalide",
+                code: "INVALID_DATE"
+            });
+        }
+
+        res.status(500).send({
+            error: e.message,
+            code: "INTERNAL_ERROR"
+        });
     }
 });
 
@@ -110,100 +246,135 @@ router.get('meet/:id',async(req,res)=>{
     }
 })
 
+router.get('/expert', authentication, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+
+        const meetings = await Meeting.findAll({
+            where: { expert: userId },
+            order: [["date", "DESC"]],
+            attributes: [
+                "id",
+                "summary",
+                "description",
+                "date",
+                "slotDuration",
+                "meetUrl",
+                "jitsiRoom",
+                [fn("concat", col("creatorUser.firstname"), " ", col("creatorUser.lastname")), "creator"]            ],
+            include: [
+                {
+                    model: User,
+                    as: "creatorUser",
+                    attributes: []
+                }
+            ]
+        });
+        const now = new Date();
+        const today = new Date();
+
+        const filteredMeetings = meetings.map(m => {
+            const meeting = m.toJSON();
+            const meetingDate = new Date(meeting.date);
+
+            const isToday =
+                meetingDate.getDate() === today.getDate() &&
+                meetingDate.getMonth() === today.getMonth() &&
+                meetingDate.getFullYear() === today.getFullYear();
+
+            const isPast = meetingDate < now;
+
+            if (!isToday ) {
+                delete meeting.meetUrl;
+                delete meeting.jitsiRoom;
+            }
+            else if(isToday && isPast){
+                delete meeting.meetUrl;
+                delete meeting.jitsiRoom;
+            }
+            return meeting;
+        });
+
+        res.status(200).send({ meetings: filteredMeetings });
+
+    } catch (e) {
+        res.status(400).send(e.message);
+    }
+});
+
+router.get('/client',googleAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const meetings = await Meeting.findAll({
+            where: { creator: userId },
+            order: [["date", "DESC"]],
+            attributes: [
+                "id",
+                "summary",
+                "description",
+                "date",
+                "slotDuration",
+                "meetUrl",
+                "jitsiRoom",
+                [fn("concat", col("expertUser.firstname"), " ", col("expertUser.lastname")), "creator"]            ],
+            include: [
+                {
+                    model: User,
+                    as: "expertUser",
+                    attributes: []
+                }
+            ]
+        });
+        const now = new Date();
+        const today = new Date();
+
+        const filteredMeetings = meetings.map(m => {
+            const meeting = m.toJSON();
+            const meetingDate = new Date(meeting.date);
+
+            const isToday =
+                meetingDate.getDate() === today.getDate() &&
+                meetingDate.getMonth() === today.getMonth() &&
+                meetingDate.getFullYear() === today.getFullYear();
+
+            const isPast = meetingDate < now;
+
+            if (!isToday ) {
+                delete meeting.meetUrl;
+                delete meeting.jitsiRoom;
+            }
+            else if(isToday && isPast){
+                delete meeting.meetUrl;
+                delete meeting.jitsiRoom;
+            }
+            return meeting;
+        });
+
+        res.status(200).send({ meetings: filteredMeetings });
+
+    } catch (e) {
+        res.status(400).send(e.message);
+    }
+});
 
 
-//
-//
-// // Update meeting
-// router.put('/update/:id', async (req, res) => {
-//     try {
-//         const meeting = await Meeting.findByPk(req.params.id);
-//         if (!meeting) {
-//             return res.status(404).send({ message: "Meeting not found" });
-//         }
-//
-//         await meeting.update(req.body);
-//         res.status(200).send({ meeting, message: "Meeting updated successfully" });
-//     } catch (e) {
-//         res.status(400).send(e.message);
-//     }
-// });
-//
-// // Delete meeting
-// router.delete('/delete/:id', async (req, res) => {
-//     try {
-//         const meeting = await Meeting.findByPk(req.params.id);
-//         if (!meeting) {
-//             return res.status(404).send({ message: "Meeting not found" });
-//         }
-//
-//         await meeting.destroy();
-//         res.status(200).send({ message: "Meeting deleted successfully" });
-//     } catch (e) {
-//         res.status(400).send(e.message);
-//     }
-// });
-//
-// // Get meetings by expert
-// router.get('/expert/:expertId', async (req, res) => {
-//     try {
-//         const meetings = await Meeting.findAll({
-//             where: { expert: req.params.expertId },
-//             order: [['date', 'DESC']]
-//         });
-//         res.status(200).send({ meetings });
-//     } catch (e) {
-//         res.status(400).send(e.message);
-//     }
-// });
-//
-// // Get meetings by creator
-// router.get('/creator/:creatorEmail', async (req, res) => {
-//     try {
-//         const meetings = await Meeting.findAll({
-//             where: { creator: req.params.creatorEmail },
-//             order: [['date', 'DESC']]
-//         });
-//         res.status(200).send({ meetings });
-//     } catch (e) {
-//         res.status(400).send(e.message);
-//     }
-// });
-//
-// // Get meetings by date range
-// router.get('/range', async (req, res) => {
-//     try {
-//         const { startDate, endDate } = req.query;
-//         const meetings = await Meeting.findAll({
-//             where: {
-//                 date: {
-//                     [Op.between]: [new Date(startDate), new Date(endDate)]
-//                 }
-//             },
-//             order: [['date', 'ASC']]
-//         });
-//         res.status(200).send({ meetings });
-//     } catch (e) {
-//         res.status(400).send(e.message);
-//     }
-// });
-//
-// // Update meeting status
-// router.patch('/status/:id', async (req, res) => {
-//     try {
-//         const { status } = req.body;
-//         const meeting = await Meeting.findByPk(req.params.id);
-//
-//         if (!meeting) {
-//             return res.status(404).send({ message: "Meeting not found" });
-//         }
-//
-//         meeting.status = status;
-//         await meeting.save();
-//
-//         res.status(200).send({ meeting, message: `Meeting status updated to ${status}` });
-//     } catch (e) {
-//         res.status(400).send(e.message);
-//     }
-// });
+
+router.get('/room/:jitsiRoom', async (req, res) => {
+    try {
+        const { jitsiRoom } = req.params;
+        const meeting = await Meeting.findOne({
+            where: { jitsiRoom }
+            // include: ['creator', 'expert']
+        });
+
+        if (!meeting) {
+            return res.status(404).json({ message: 'Meeting not found' });
+        }
+
+        res.json(meeting);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
 module.exports = router;

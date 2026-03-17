@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../../Component/Header';
+import Header from '../../component/Header';
 import { motion, AnimatePresence } from 'framer-motion';
 import { meetingService } from '../../services/meetingService';
 import type { Meeting } from '../../models/Meeting';
-import {calendarService} from "../../services/calendarService.tsx";
-import type {Availability, DisponibilityData} from "../../models/Calendar.tsx";
+import {calendarService} from "../../services/calendarService";
 
 
 function CalendarPage() {
@@ -17,16 +16,9 @@ function CalendarPage() {
     const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
     const navigate = useNavigate();
     const [WORK_HOURS_START,setWORK_HOURS_START] =useState(8)
-    const [WORK_HOURS_END,setWORK_HOURS_END]=useState(18)
+    const [WORK_HOURS_END,setWORK_HOURS_END]=useState(20)
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        const expert = localStorage.getItem('expert');
 
-        if (!token) {
-            navigate('/login');
-            return;
-        }
-        fetchAvailability();
         fetchMeetings();
     }, []);
 
@@ -43,19 +35,7 @@ function CalendarPage() {
             setIsLoading(false);
         }
     };
-    const fetchAvailability = async () => {
-        try {
-            const data = await calendarService.getAvailability();
 
-            const startTime=parseInt(data.startTime.split(':')[0], 10);
-            const endTime = parseInt(data.endTime.split(':')[0], 10);
-
-            setWORK_HOURS_START(startTime);
-            setWORK_HOURS_END(endTime)
-        } catch (error: any) {
-            setError(error.response?.data?.message || 'Erreur de chargement');
-        }
-    };
     const formatEventTime = (meeting: Meeting) => {
         return new Date(meeting.date).toLocaleTimeString('fr-FR', {
             hour: '2-digit',
