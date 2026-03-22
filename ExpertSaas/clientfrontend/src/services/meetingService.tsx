@@ -134,7 +134,7 @@ export const meetingService = {
     },
     getMeetingById: async (id: string): Promise<{ meeting: Meeting }> => {
         try {
-            const response = await api.get<{ meeting: Meeting }>(`/meet/${id}`);
+            const response = await api.get<{ meeting: Meeting }>(`/clientMeet/${id}`);
             return response.data;
         } catch (error) {
             console.error(`Error fetching meeting with id ${id}:`, error);

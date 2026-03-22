@@ -165,7 +165,6 @@ function CalendarPage() {
         setCurrentDate(new Date());
     };
 
-    // Render Month View
     const renderMonthView = () => (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
@@ -245,7 +244,6 @@ function CalendarPage() {
         </div>
     );
 
-    // Render Week View (restricted to 8h-18h)
     const renderWeekView = () => (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="grid grid-cols-8 border-b border-gray-200 bg-gray-50">
@@ -328,7 +326,6 @@ function CalendarPage() {
         </div>
     );
 
-    // Render Day View (restricted to 8h-18h)
     const renderDayView = () => (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-indigo-100/50 p-4">

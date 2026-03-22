@@ -7,14 +7,12 @@ function Login() {
     const [checkingAuth, setCheckingAuth] = useState(true);
 
     useEffect(() => {
-        // Check if this is the OAuth callback popup
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('connected') || urlParams.has('error')) {
             authService.handleOAuthCallback();
             return;
         }
 
-        // If already logged in, redirect to home
         if (authService.isLoggedIn()) {
             window.location.href = "/accueil";
             return;

@@ -5,9 +5,12 @@ const sequelize = require('./config/db');
 const authRouter = require('./auth/authentification');
 const calandarRouter = require('./agenda/CalendarRoute');
 const userRouter = require('./users/userroutes');
-const meetingRouter=require('./meeting/MeetingRoutes');
-const session = require("express-session");
-const User =require('./models/User.js')
+const meetingRouter = require('./meeting/MeetingRoutes');
+const notificationRouter = require('./notification/NotificationRoutes');
+const User = require('./models/User.js');
+const { initSocket } = require("./socket");
+const http = require("http");
+
 const app = express();
 
 app.use(cors({
@@ -16,35 +19,24 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
 }));
 app.use(express.json());
-app.use(session({
-    secret: process.env.SESSION_SECRET ,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000
-    }
-}));
+
+const server = http.createServer(app);
+
+const io = initSocket(server);
+
 app.use('/api/auth', authRouter);
 app.use('/api/calendar', calandarRouter);
 app.use('/api/users', userRouter);
 app.use('/api/meet', meetingRouter);
-
-
+app.use('/api/notifications', notificationRouter);
 
 sequelize.sync({ alter: true })
-    .then(() => {
-        console.log('Database synced successfully');
-    })
-    .catch(err => {
-        console.error('Error syncing database:', err);
-    });
+    .then(() => console.log('Database synced successfully'))
+    .catch(err => console.error('Error syncing database:', err));
 
 async function createAdmin() {
     try {
-        const {firstname, lastname, role, email, password} = {
-            id:0,
+        const { firstname, lastname, role, email, password } = {
             firstname: "med",
             lastname: "mehdi",
             role: "user",
@@ -52,37 +44,20 @@ async function createAdmin() {
             password: "admin123*"
         };
 
-        const existingUser = await User.findOne({where: {email}});
+        const existingUser = await User.findOne({ where: { email } });
+        if (existingUser) return "User already exists";
 
-        if (existingUser) {
-            return "User already exists";
-        }
-
-        const user = await User.create({
-            firstname,
-            lastname,
-            email,
-            password,
-            role
-        });
-
-        return {
-            message: "User registered successfully",
-            user
-        };
+        const user = await User.create({ firstname, lastname, email, password, role });
+        return { message: "User registered successfully", user };
 
     } catch (e) {
-       return e.message;
+        return e.message;
     }
-
-};
-
-
+}
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, async () => {
+server.listen(PORT, async () => {
     console.log(`Server running on port ${PORT}`);
-    const msg=await createAdmin()
-
-    console.log(msg)
+    const msg = await createAdmin();
+    console.log(msg);
 });

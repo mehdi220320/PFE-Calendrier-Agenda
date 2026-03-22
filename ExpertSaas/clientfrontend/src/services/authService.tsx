@@ -116,6 +116,7 @@ export const authService = {
         const connected = params.get('connected');
         const errorParam = params.get('error');
         const tokens = params.get('tokens');
+        const user = params.get('user');
         const state = params.get('state');
         const storedState = localStorage.getItem('oauth_state');
 
@@ -132,7 +133,6 @@ export const authService = {
             return;
         }
 
-        // Clear the state
         localStorage.removeItem('oauth_state');
 
         if (errorParam === 'auth_failed') {
@@ -148,14 +148,15 @@ export const authService = {
 
         if (connected === 'true' && tokens) {
             try {
-                // Validate token format
                 const parsedTokens = JSON.parse(decodeURIComponent(tokens));
                 if (!parsedTokens.access_token) {
                     throw new Error('Invalid token format');
                 }
 
-                // Store tokens
                 localStorage.setItem('google_tokens', tokens);
+                if (typeof user === "string") {
+                    localStorage.setItem('user', user);
+                }
                 localStorage.setItem('isLoggedIn', 'true');
 
                 if (window.opener) {

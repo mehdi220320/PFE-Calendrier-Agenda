@@ -7,6 +7,7 @@ const { authentication,googleAuth } = require('../middleware/authMiddleware');
 const { google } = require("googleapis");
 require('../models/associations');
 const { col,fn } = require("sequelize");
+const {createNotification} = require("../notification/NotificationService");
 
 async function sendMeetingCreationEmail(userEmail, description) {
     const transporter = nodemailer.createTransport({
@@ -170,7 +171,6 @@ router.post('/add', googleAuth, async (req, res) => {
             }
         }
         const generateJitsiRoom = (expertId, creatorId, summary) => {
-            // Clean the summary to be URL-friendly
             const cleanSummary = summary ?
                 summary.toLowerCase()
                     .replace(/[^a-z0-9]/g, '-')  // Replace special chars with hyphens
@@ -205,6 +205,21 @@ router.post('/add', googleAuth, async (req, res) => {
         await sendMeetingCreationEmail(req.user.email, meetUrl);
         await sendMeetingCreationEmail(expert.email, meetUrl);
 
+        await createNotification({
+            title:"Nouvelle réunion créée "+summary,
+            description:"Une réunion avec Monsieur " +expert.firstname + " " + expert.lastname + " a été programmée à " + date,
+            userId:req.user.id,
+            meetingId:meet.id
+            }
+        );
+
+        await createNotification({
+            title: "Nouvelle réunion créée"+summary,
+            description:  "Une réunion avec " +req.user.firstname + " " + req.user.lastname + " a été programmée à " + date,
+            userId:expert.id,
+            meetingId:meet.id
+            }
+        );
 
         res.status(200).send({
             meet,
@@ -234,18 +249,56 @@ router.post('/add', googleAuth, async (req, res) => {
     }
 });
 
-router.get('meet/:id',async(req,res)=>{
+router.get('/clientMeet/:id', async (req, res) => {
     try {
-        const meet=await Meeting.findByPk(req.params.id);
-        if(!meet){
-            res.status(404).send({ message: "Meeting not found" });
-        };
-        res.status(200).send({meeting:meet});
-    }catch (e) {
-        res.status(404).send(e.message);
-    }
-})
+        const meeting = await Meeting.findByPk(req.params.id, {
+            attributes: [
+                "id",
+                "summary",
+                "description",
+                "date",
+                "slotDuration",
+                "meetUrl",
+                "jitsiRoom",
+                [fn("concat", col("expertUser.firstname"), " ", col("expertUser.lastname")), "expert"]
+            ],
+            include: [
+                {
+                    model: User,
+                    as: "expertUser",
+                    attributes: []
+                }
+            ]
+        });
 
+        if (!meeting) {
+            return res.status(404).send({ message: "Meeting not found" });
+        }
+
+        const now = new Date();
+        const today = new Date();
+        const meetingDate = new Date(meeting.date);
+
+        const isToday =
+            meetingDate.getDate() === today.getDate() &&
+            meetingDate.getMonth() === today.getMonth() &&
+            meetingDate.getFullYear() === today.getFullYear();
+
+        const isPast = meetingDate < now;
+
+        const meetingObj = meeting.toJSON();
+
+        if (!isToday || (isToday && isPast)) {
+            delete meetingObj.meetUrl;
+            delete meetingObj.jitsiRoom;
+        }
+
+        res.status(200).json(meetingObj);
+
+    } catch (e) {
+        res.status(500).send(e.message);
+    }
+});
 router.get('/expert', authentication, async (req, res) => {
     try {
         const userId = req.user.userId;
@@ -365,7 +418,6 @@ router.get('/room/:jitsiRoom', async (req, res) => {
         const { jitsiRoom } = req.params;
         const meeting = await Meeting.findOne({
             where: { jitsiRoom }
-            // include: ['creator', 'expert']
         });
 
         if (!meeting) {

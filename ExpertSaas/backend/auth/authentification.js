@@ -124,17 +124,13 @@ router.get("/google/callback", async (req, res) => {
 
         const tokensDataEncoded = encodeURIComponent(JSON.stringify({access_token:tokens.access_token,expiry_date:tokens.expiry_date}));
 
-        res.redirect(`http://localhost:5173/login?connected=true&tokens=${tokensDataEncoded}`);
+        res.redirect(`http://localhost:5173/login?connected=true&tokens=${tokensDataEncoded}&user=${user.id}`);
 
     } catch (error) {
         console.error('Erreur détaillée auth:', error);
         res.redirect('http://localhost:5173?error=auth_failed');
     }
 });
-
-
-
-
 
 router.post('/forgot-password', async (req, res) => {
     try {

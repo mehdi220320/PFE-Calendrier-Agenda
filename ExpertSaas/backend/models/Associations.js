@@ -6,6 +6,7 @@ const BlockedSlot = require("../agenda/BlockedSlot");
 const Break = require("../agenda/Break");
 const GoogleAccount=require("./GoogleAccount")
 const  Meeting = require('../meeting/Meeting');
+const Notification=require("../notification/Notification");
 User.hasOne(Token, {
     foreignKey: "userId",
     onDelete: "CASCADE",
@@ -62,4 +63,14 @@ Meeting.belongsTo(User, {
 Meeting.belongsTo(User, {
     foreignKey: "expert",
     as: "expertUser"
+});
+
+Notification.belongsTo(Meeting, {
+    foreignKey: "meeting",
+    as: "meetingData"
+});
+
+Meeting.hasMany(Notification, {
+    foreignKey: "meeting",
+    as: "notifications"
 });
