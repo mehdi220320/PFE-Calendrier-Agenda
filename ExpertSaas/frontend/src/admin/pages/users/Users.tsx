@@ -1,19 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import Header from '../components/Header.tsx';
-import AddUser from './AddUser.tsx';
+import Header from '../../components/Header.tsx';
+import AddUser from './components/AddUser.tsx';
+import EditExpertProfile from './components/EditExpertProfile.tsx'
+import {  type User } from '../../../models/User.tsx'
 
-interface User {
-    id: string;
-    firstname: string;
-    lastname: string;
-    email: string;
-    phone: string | null;
-    picture: string | null;
-    isActive: boolean;
-    role: string;
-    createdAt: string;
-    updatedAt: string;
-}
 
 interface ApiResponse {
     messsage: string;
@@ -37,8 +27,8 @@ const Users = () => {
     const [roleFilter, setRoleFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
     const [showCreateModal, setShowCreateModal] = useState(false);
-
-    // Pagination states
+    const [showEditProfile, setShowEditProfile] = useState(false);
+    const [selectedExpertId, setSelectedExpertId] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const usersPerPage = 5;
 
@@ -72,14 +62,12 @@ const Users = () => {
         }
     };
 
-    // Calculate user statistics
     const calculateStats = (): UserStats => {
         const totalUsers = users.length;
         const totalAdmins = users.filter(u => u.role === 'admin').length;
         const totalExperts = users.filter(u => u.role === 'expert').length;
         const totalActive = users.filter(u => u.isActive).length;
 
-        // Calculate new users this month
         const now = new Date();
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         const newThisMonth = users.filter(u => new Date(u.createdAt) >= firstDayOfMonth).length;
@@ -98,7 +86,6 @@ const Users = () => {
 
     const stats = calculateStats();
 
-    // Filter users based on search, role, and status
     const filteredUsers = users.filter(user => {
         const matchesSearch =
             user.firstname.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -443,10 +430,27 @@ const Users = () => {
                                                 {formatDate(user.createdAt)}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button className="text-indigo-600 hover:text-indigo-900 mr-3 transition-colors">
-                                                    {user.isActive ? "Restreindre" : "Activer"}
-                                                </button>
+                                                <div className="flex justify-end gap-2">
+                                                    {user.role === 'expert' && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedExpertId(user.id);
+                                                                setShowEditProfile(true);
+                                                            }}
+                                                            className="text-green-600 hover:text-green-900 transition-colors"
+                                                            title="Modifier le profil expert"
+                                                        >
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+                                                    <button className="text-indigo-600 hover:text-indigo-900 transition-colors">
+                                                        {user.isActive ? "Restreindre" : "Activer"}
+                                                    </button>
+                                                </div>
                                             </td>
+
                                         </tr>
                                     ))
                                 ) : (
@@ -525,7 +529,18 @@ const Users = () => {
                     </div>
                 </main>
             </div>
-
+            // Ajouter le composant EditExpertProfile à la fin
+            {showEditProfile && selectedExpertId && (
+                <EditExpertProfile
+                    show={showEditProfile}
+                    onClose={() => {
+                        setShowEditProfile(false);
+                        setSelectedExpertId(null);
+                    }}
+                    expertId={selectedExpertId}
+                    onProfileUpdated={fetchUsers}
+                />
+            )}
             {/* Add User component */}
             <AddUser
                 show={showCreateModal}
@@ -537,6 +552,9 @@ const Users = () => {
             />
         </>
     );
+
+
+
 };
 
 export default Users;

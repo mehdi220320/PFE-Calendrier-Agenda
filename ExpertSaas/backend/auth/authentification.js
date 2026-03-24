@@ -479,7 +479,8 @@ router.post('/login', async (req, res) => {
             isActive: user.isActive,
             email:user.email,
             firstname:user.firstname,
-            lastname:user.lastname
+            lastname:user.lastname,
+            userId:user.id
 
         });
 

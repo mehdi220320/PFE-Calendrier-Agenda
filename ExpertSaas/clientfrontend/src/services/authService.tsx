@@ -37,7 +37,6 @@ export const authService = {
             const left = window.screenX + (window.outerWidth - width) / 2;
             const top = window.screenY + (window.outerHeight - height) / 2;
 
-            // Generate a unique state parameter for security
             const state = Math.random().toString(36).substring(7);
             localStorage.setItem('oauth_state', state);
 

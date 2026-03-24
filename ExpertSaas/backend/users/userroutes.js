@@ -267,7 +267,7 @@ router.post('/adduser',adminAuthorization, async (req, res) => {
         const userResponse = user.toJSON();
         delete userResponse.password;
         res.status(201).send({
-            message: "User registered successfully",
+            message: "Expert registered successfully",
             user
         });
 

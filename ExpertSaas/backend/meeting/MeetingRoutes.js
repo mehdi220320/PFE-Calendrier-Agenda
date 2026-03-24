@@ -202,8 +202,8 @@ router.post('/add', googleAuth, async (req, res) => {
         });
 
 
-        await sendMeetingCreationEmail(req.user.email, meetUrl);
-        await sendMeetingCreationEmail(expert.email, meetUrl);
+        // ( test it without await) sendMeetingCreationEmail(req.user.email, meetUrl);
+        // await sendMeetingCreationEmail(expert.email, meetUrl);
 
         await createNotification({
             title:"Nouvelle réunion créée "+summary,
@@ -299,6 +299,58 @@ router.get('/clientMeet/:id', async (req, res) => {
         res.status(500).send(e.message);
     }
 });
+
+router.get('/expertMeet/:id', async (req, res) => {
+    try {
+        const meeting = await Meeting.findByPk(req.params.id, {
+            attributes: [
+                "id",
+                "summary",
+                "description",
+                "date",
+                "slotDuration",
+                "meetUrl",
+                "jitsiRoom",
+                [fn("concat", col("creatorUser.firstname"), " ", col("creatorUser.lastname")), "creator"]
+            ],
+            include: [
+                {
+                    model: User,
+                    as: "creatorUser",
+                    attributes: []
+                }
+            ]
+        });
+
+        if (!meeting) {
+            return res.status(404).send({ message: "Meeting not found" });
+        }
+
+        const now = new Date();
+        const today = new Date();
+        const meetingDate = new Date(meeting.date);
+
+        const isToday =
+            meetingDate.getDate() === today.getDate() &&
+            meetingDate.getMonth() === today.getMonth() &&
+            meetingDate.getFullYear() === today.getFullYear();
+
+        const isPast = meetingDate < now;
+
+        const meetingObj = meeting.toJSON();
+
+        if (!isToday || (isToday && isPast)) {
+            delete meetingObj.meetUrl;
+            delete meetingObj.jitsiRoom;
+        }
+
+        res.status(200).json(meetingObj);
+
+    } catch (e) {
+        res.status(500).send(e.message);
+    }
+});
+
 router.get('/expert', authentication, async (req, res) => {
     try {
         const userId = req.user.userId;
@@ -370,7 +422,7 @@ router.get('/client',googleAuth, async (req, res) => {
                 "slotDuration",
                 "meetUrl",
                 "jitsiRoom",
-                [fn("concat", col("expertUser.firstname"), " ", col("expertUser.lastname")), "creator"]            ],
+                [fn("concat", col("expertUser.firstname"), " ", col("expertUser.lastname")), "expert"]            ],
             include: [
                 {
                     model: User,

@@ -1,4 +1,4 @@
-interface User {
+export interface User {
     id: string;
     firstname: string;
     lastname: string;
@@ -9,4 +9,12 @@ interface User {
     role: string;
     createdAt: string;
     updatedAt: string;
+}
+export interface NewUser {
+    firstname: string;
+    lastname: string;
+    email: string;
+    phone: string;
+    role: 'admin' | 'expert' | 'user';
+    isActive: boolean;
 }

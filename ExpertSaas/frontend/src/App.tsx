@@ -12,9 +12,10 @@ import AvailabilityPage from "./pages/calendar/AvailabilityPage.tsx";
 import MyMeetingView from "./pages/meeting/MyMeetingView.tsx";
 import JitsiRoom from "./pages/meeting/JitsiRoom.tsx";
 
-const Users = lazy(() => import('./admin/pages/Users.tsx'));
+const Users = lazy(() => import('./admin/pages/users/Users.tsx'));
 const Meetings = lazy(() => import('./admin/pages/Meetings.tsx'));
 const Reclamations = lazy(() => import('./admin/pages/Reclamations.tsx'));
+const CategoriesManagement = lazy(() => import('./admin/pages/categories/CategoriesManagement.tsx'));
 const AdminDashboard = lazy(() => import('./admin/pages/AdminDashboard.tsx'));
 
 const PageLoader = () => (
@@ -55,12 +56,23 @@ function App() {
                         </ProtectedRoute>
                     }
                 />
+
                 <Route
                     path="/admin/users"
                     element={
                         <ProtectedRoute>
                             <Suspense fallback={<PageLoader />}>
                                 <Users />
+                            </Suspense>
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/admin/categories"
+                    element={
+                        <ProtectedRoute>
+                            <Suspense fallback={<PageLoader />}>
+                                <CategoriesManagement />
                             </Suspense>
                         </ProtectedRoute>
                     }

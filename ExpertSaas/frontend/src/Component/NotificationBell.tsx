@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import notificationService from '../services/notificationService.tsx';
 import { type Notification } from '../models/Notification.tsx';
-import { Bell, ChevronDown, X, User, Calendar, Video, Clock } from 'lucide-react';
+import { Bell, ChevronDown, X, User, Calendar, Video, Clock, ChevronUp } from 'lucide-react';
 import { type Meeting } from '../models/Meeting';
 import { meetingService } from '../services/meetingService';
 
@@ -17,7 +17,6 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
     const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
     const [showDialog, setShowDialog] = useState(false);
     const [isMeetingLoading, setIsMeetingLoading] = useState(false);
-    const [isMarkingAll, setIsMarkingAll] = useState(false);
     const [showAllNotifications, setShowAllNotifications] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const dialogRef = useRef<HTMLDivElement>(null);
@@ -28,9 +27,16 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
             setIsLoading(true);
             const data = await notificationService.getNotifications();
             console.log('Setting notifications:', data);
-            setNotifications(data);
+
+            if (Array.isArray(data)) {
+                setNotifications(data);
+            } else {
+                console.error('Expected array but got:', data);
+                setNotifications([]);
+            }
         } catch (error) {
             console.error('Error fetching notifications:', error);
+            setNotifications([]);
         } finally {
             setIsLoading(false);
         }
@@ -40,13 +46,15 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
         console.log('🎯 HANDLING NEW NOTIFICATION IN COMPONENT:', newNotification);
 
         setNotifications(prev => {
-            const exists = prev.some(n => n.id === newNotification.id);
+            // Ensure prev is an array
+            const prevArray = Array.isArray(prev) ? prev : [];
+            const exists = prevArray.some(n => n.id === newNotification.id);
             if (exists) {
                 console.log('Notification already exists, skipping');
-                return prev;
+                return prevArray;
             }
             console.log('Adding new notification to state');
-            return [newNotification, ...prev];
+            return [newNotification, ...prevArray];
         });
 
         if (Notification.permission === 'granted') {
@@ -78,7 +86,11 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
             if (userId) return userId;
 
             try {
-                return localStorage.getItem('user');
+                const user = localStorage.getItem('user');
+                if (user) {
+                    const userData = JSON.parse(user);
+                    return userData.id || userData.userId;
+                }
             } catch (error) {
                 console.error('Error getting userId:', error);
             }
@@ -120,18 +132,22 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
     }, [userId, fetchNotifications, handleNewNotification]);
 
     useEffect(() => {
-        setUnreadCount(notifications.filter(n => !n.read).length);
-        console.log('Unread count updated:', notifications.filter(n => !n.read).length);
+        // Ensure notifications is an array before calling filter
+        const notificationsArray = Array.isArray(notifications) ? notifications : [];
+        const unread = notificationsArray.filter(n => n && !n.read).length;
+        setUnreadCount(unread);
+        console.log('Unread count updated:', unread);
     }, [notifications]);
 
     const markAsRead = async (notificationId: string, meetingId: string) => {
         try {
             await notificationService.readNotification(notificationId);
-            setNotifications(prev =>
-                prev.map(n =>
+            setNotifications(prev => {
+                const prevArray = Array.isArray(prev) ? prev : [];
+                return prevArray.map(n =>
                     n.id === notificationId ? { ...n, read: true } : n
-                )
-            );
+                );
+            });
 
             // Fetch and show meeting details
             const meetingData = await getMeeting(meetingId);
@@ -145,39 +161,33 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
         }
     };
 
-    const markAllAsRead = async () => {
-        if (isMarkingAll) return;
-
-        setIsMarkingAll(true);
-
+    const markAllAsRead = useCallback(async () => {
         try {
             // Get all unread notifications
-            const unreadNotifications = notifications.filter(n => !n.read);
+            const notificationsArray = Array.isArray(notifications) ? notifications : [];
+            const unreadNotifications = notificationsArray.filter(n => n && !n.read);
 
-            // Process each unread notification in a loop
-            for (const notification of unreadNotifications) {
-                try {
-                    await notificationService.readNotification(notification.id);
-                    console.log(`Marked notification ${notification.id} as read`);
-                } catch (error) {
-                    console.error(`Error marking notification ${notification.id} as read:`, error);
-                }
-            }
-
-            // Update all notifications to read state
-            setNotifications(prev =>
-                prev.map(n => ({ ...n, read: true }))
+            // Mark each unread notification as read
+            await Promise.all(
+                unreadNotifications.map(notification =>
+                    notificationService.readNotification(notification.id)
+                )
             );
+
+            // Update local state
+            setNotifications(prev => {
+                const prevArray = Array.isArray(prev) ? prev : [];
+                return prevArray.map(n => ({ ...n, read: true }));
+            });
 
             console.log(`Marked ${unreadNotifications.length} notifications as read`);
         } catch (error) {
-            console.error('Error in markAllAsRead:', error);
-        } finally {
-            setIsMarkingAll(false);
+            console.error('Error marking all notifications as read:', error);
         }
-    };
+    }, [notifications]);
 
     const formatDate = (dateString: string) => {
+        if (!dateString) return '';
         const date = new Date(dateString);
         const now = new Date();
         const diffMs = now.getTime() - date.getTime();
@@ -194,6 +204,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
     };
 
     const formatMeetingDate = (date: string | Date) => {
+        if (!date) return '';
         const meetingDate = new Date(date);
         return meetingDate.toLocaleDateString('fr-FR', {
             weekday: 'long',
@@ -206,6 +217,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
     };
 
     const getMeetingLinkMessage = (date: string | Date) => {
+        if (!date) return '';
         const meetingDate = new Date(date);
         const day = meetingDate.getDate();
         const month = meetingDate.getMonth() + 1;
@@ -221,30 +233,26 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
         };
     };
 
-    const toggleShowAllNotifications = () => {
-        setShowAllNotifications(!showAllNotifications);
+    // Ensure notifications is an array for rendering
+    const notificationsArray = Array.isArray(notifications) ? notifications : [];
 
-        // Add slight delay to allow the animation to complete
-        setTimeout(() => {
-            if (notificationsContainerRef.current && showAllNotifications) {
-                notificationsContainerRef.current.scrollTop = 0;
-            }
-        }, 100);
-    };
-
-    // Get notifications to display based on showAll state
+    // Get displayed notifications based on showAllNotifications state
     const displayedNotifications = showAllNotifications
-        ? notifications
-        : notifications.slice(0, 3);
+        ? notificationsArray
+        : notificationsArray.slice(0, 3);
 
-    const hasMoreNotifications = notifications.length > 3;
+    const hasMoreNotifications = notificationsArray.length > 3;
+
+    const toggleShowAll = () => {
+        setShowAllNotifications(!showAllNotifications);
+    };
 
     return (
         <>
             <div className="relative" ref={dropdownRef}>
                 <button
                     onClick={() => setShowDropdown(!showDropdown)}
-                    className="relative flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-blue-600 transition-colors rounded-md hover:bg-gray-200"
+                    className="flex items-center space-x-2 text-sm font-medium px-3 py-2 rounded-md transition-colors text-gray-600 hover:text-blue-600 hover:bg-gray-200"
                     disabled={isLoading}
                 >
                     <Bell className="h-4 w-4" />
@@ -263,12 +271,9 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
                             {unreadCount > 0 && (
                                 <button
                                     onClick={markAllAsRead}
-                                    disabled={isMarkingAll}
-                                    className={`text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors ${
-                                        isMarkingAll ? 'opacity-50 cursor-not-allowed' : ''
-                                    }`}
+                                    className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
                                 >
-                                    {isMarkingAll ? 'Marquage...' : 'Marquer tout comme lu'}
+                                    Marquer tout comme lu
                                 </button>
                             )}
                         </div>
@@ -277,7 +282,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
                             ref={notificationsContainerRef}
                             className="overflow-y-auto transition-all duration-300 ease-in-out"
                             style={{
-                                maxHeight: showAllNotifications ? '480px' : '360px',
+                                maxHeight: showAllNotifications ? '500px' : '400px',
                                 transition: 'max-height 0.3s ease-in-out'
                             }}
                         >
@@ -285,13 +290,14 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
                                 <div className="px-4 py-8 text-center text-gray-500">
                                     Chargement...
                                 </div>
-                            ) : notifications.length === 0 ? (
+                            ) : notificationsArray.length === 0 ? (
                                 <div className="px-4 py-8 text-center text-gray-500">
                                     Aucune notification
                                 </div>
                             ) : (
                                 <>
                                     {displayedNotifications.map((notification) => {
+                                        if (!notification) return null;
                                         const { icon: IconComponent, bgColor, iconColor } = getNotificationIcon(notification.type || 'default');
                                         return (
                                             <div
@@ -321,24 +327,27 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
                                             </div>
                                         );
                                     })}
-
-                                    {/* Show message when there are hidden notifications */}
-                                    {!showAllNotifications && hasMoreNotifications && (
-                                        <div className="px-4 py-2 text-center text-xs text-gray-400 border-t border-gray-100">
-                                            + {notifications.length - 3} notification{notifications.length - 3 > 1 ? 's' : ''} non affichée{notifications.length - 3 > 1 ? 's' : ''}
-                                        </div>
-                                    )}
                                 </>
                             )}
                         </div>
 
-                        {notifications.length > 0 && (
+                        {hasMoreNotifications && (
                             <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
                                 <button
-                                    onClick={toggleShowAllNotifications}
-                                    className="block text-center text-sm text-blue-600 hover:text-blue-800 font-medium w-full transition-colors"
+                                    onClick={toggleShowAll}
+                                    className="flex items-center justify-center text-sm text-blue-600 hover:text-blue-800 font-medium w-full gap-2 transition-colors"
                                 >
-                                    {showAllNotifications ? 'Voir moins' : 'Voir toutes les notifications'}
+                                    {showAllNotifications ? (
+                                        <>
+                                            <ChevronUp className="h-4 w-4" />
+                                            Voir moins
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ChevronDown className="h-4 w-4" />
+                                            Voir toutes les notifications ({notificationsArray.length})
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         )}

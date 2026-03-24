@@ -49,6 +49,16 @@ export const meetingService = {
             console.error('Error fetching meeting by room:', error);
             throw error;
         }
-    }
+    },
+    getMeetingById: async (id: string): Promise<{ meeting: Meeting }> => {
+        try {
+            const response = await api.get<{ meeting: Meeting }>(`/clientMeet/${id}`);
+            return response.data;
+        } catch (error) {
+            console.error(`Error fetching meeting with id ${id}:`, error);
+            throw error;
+        }
+    },
+
 
 };

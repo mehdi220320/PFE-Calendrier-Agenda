@@ -24,13 +24,15 @@ const Meeting = sequelize.define("Meeting", {
             key: 'id'
         },
         Validator:{
-            isValidDayArray(value) {
-                    if(!(value.toUpperCase()!=="EXPERT")){
-                    console.log("The user isn't an expert");
-                    return false;
-                }else{
-                        return true;
-                    }
+            async isUserExpert(value) {
+                const user = await User.findByPk(value);
+                if (!user) {
+                    throw new Error('User not found');
+                }
+                if (user.role !== 'EXPERT') {
+                    throw new Error('Only users with EXPERT role can be assigned as expert');
+                }
+                return true;
             }
         }
     },

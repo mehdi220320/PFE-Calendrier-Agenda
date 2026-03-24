@@ -10,6 +10,7 @@ interface AuthResponse {
     email:string;
     firstname: string;
     lastname: string;
+    userId:string;
 }
 
 function Login() {
@@ -65,6 +66,8 @@ function Login() {
             localStorage.setItem('email', String(data.email));
             localStorage.setItem('firstname', String(data.firstname));
             localStorage.setItem('lastname', String(data.lastname));
+            localStorage.setItem('user', String(data.userId));
+
             console.log("data"+localStorage.getItem('token'))
 
             const expirationTime = Date.now() + (data.expiresIn * 1000);

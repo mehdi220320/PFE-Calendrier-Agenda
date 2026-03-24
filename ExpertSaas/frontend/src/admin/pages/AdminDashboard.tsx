@@ -1,7 +1,7 @@
 import Header from "../components/Header.tsx";
 
 function AdminDashboard() {
-    // Static data for the dashboard
+
     const stats = {
         totalUsers: 1250,
         totalExperts: 45,
@@ -10,7 +10,6 @@ function AdminDashboard() {
         activeSessions: 156
     };
 
-    // Recent users data
     const recentUsers = [
         { id: 1, name: "Marie Lambert", email: "marie.l@example.com", role: "expert", joined: "2026-02-24" },
         { id: 2, name: "Thomas Martin", email: "thomas.m@example.com", role: "user", joined: "2026-02-23" },
