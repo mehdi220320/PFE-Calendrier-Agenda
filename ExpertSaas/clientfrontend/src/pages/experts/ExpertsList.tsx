@@ -1,40 +1,71 @@
 import Header from "../../component/Header.tsx";
 import { useEffect, useState } from "react";
 import type { User } from "../../models/User.tsx";
-import { UserServices } from '../../services/UserServices.tsx';
-import { Link } from "react-router-dom";
-import { Search, Star, Clock, Calendar, ChevronRight, Filter,  } from "lucide-react";
+import { expertProfilService } from '../../services/expertProfileService.tsx';
+import { Link, useSearchParams } from "react-router-dom";
+import { Search, Star, Clock, Calendar, ChevronRight, Filter, Users, Briefcase } from "lucide-react";
 
 function ExpertsList() {
+    const [searchParams] = useSearchParams();
+    const categoryFromUrl = searchParams.get('categorie');
+
     const [experts, setExperts] = useState<User[]>([]);
     const [filteredExperts, setFilteredExperts] = useState<User[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    // const [selectedCategory, setSelectedCategory] = useState<string>("tous");
+    const [selectedCategory, setSelectedCategory] = useState<string>(categoryFromUrl || "tous");
+    const [categories, setCategories] = useState<{ category: string, nb_of_profiles: number }[]>([]);
 
-    // const categories = [
-    //     { id: "tous", name: "Tous les experts", icon: Users },
-    //     { id: "juridique", name: "Juridique", icon: Briefcase },
-    //     { id: "financier", name: "Financier", icon: Briefcase },
-    //     { id: "divers", name: "Divers", icon: Briefcase },
-    // ];
+    // Process category from URL - decode and replace %20 with space
+    useEffect(() => {
+        if (categoryFromUrl) {
+            const decodedCategory = decodeURIComponent(categoryFromUrl);
+            setSelectedCategory(decodedCategory);
+        }
+    }, [categoryFromUrl]);
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const data = await expertProfilService.getCategories();
+                setCategories(data);
+            } catch (err) {
+                console.error('Failed to fetch categories:', err);
+            }
+        };
+
+        fetchCategories();
+    }, []);
 
     useEffect(() => {
         const fetchExperts = async () => {
             try {
-                const data = await UserServices.getExperts();
-                setExperts(data);
-                setFilteredExperts(data);
+                setLoading(true);
+                let expertsData: User[] = [];
+
+                if (selectedCategory !== "tous") {
+                    // Fetch experts by category
+                    const response = await expertProfilService.getExpertsByCategory(selectedCategory);
+                    expertsData = response.map(item => item.expertUser);
+                } else {
+                    // Fetch all experts using the new getAllExperts method
+                    const allExpertsResponse = await expertProfilService.getAllExperts();
+                    expertsData = allExpertsResponse.map(item => item.expertUser);
+                }
+
+                setExperts(expertsData);
+                setFilteredExperts(expertsData);
             } catch (err) {
                 setError('Échec du chargement des experts');
+                console.error(err);
             } finally {
                 setLoading(false);
             }
         };
 
         fetchExperts();
-    }, []);
+    }, [selectedCategory]);
 
     useEffect(() => {
         let filtered = experts;
@@ -42,21 +73,21 @@ function ExpertsList() {
             filtered = filtered.filter(expert =>
                 expert.firstname.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 expert.lastname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                expert.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (expert.specialty && expert.specialty.toLowerCase().includes(searchTerm.toLowerCase()))
+                expert.email.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
 
-        // Filtre par catégorie
-        // if (selectedCategory !== "tous") {
-        //     filtered = filtered.filter(expert =>
-        //         expert.category === selectedCategory ||
-        //         (expert.specialty && expert.specialty.toLowerCase().includes(selectedCategory))
-        //     );
-        // }
-
         setFilteredExperts(filtered);
     }, [searchTerm, experts]);
+
+    const handleCategoryChange = (categoryId: string) => {
+        setSelectedCategory(categoryId);
+        // Update URL without refreshing the page
+        const newUrl = categoryId === "tous"
+            ? `/experts`
+            : `/experts?categorie=${encodeURIComponent(categoryId)}`;
+        window.history.pushState({}, '', newUrl);
+    };
 
     const DefaultExpertSVG = () => (
         <svg className="w-12 h-12 text-indigo-400" fill="currentColor" viewBox="0 0 24 24">
@@ -101,11 +132,21 @@ function ExpertsList() {
         );
     }
 
+    // Define categories for display
+    const displayCategories = [
+        { id: "tous", name: "Tous les experts", icon: Users },
+        ...categories.map(cat => ({
+            id: cat.category,
+            name: cat.category.charAt(0).toUpperCase() + cat.category.slice(1),
+            icon: Briefcase
+        }))
+    ];
+
     return (
         <>
             <Header />
-            <main className="min-h-screen bg-gray-50  pb-12 pt-22">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ">
+            <main className="min-h-screen bg-gray-50 pb-12 pt-22">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="text-left mb-12">
                         <h1 className="text-4xl font-bold text-gray-900 mb-3 tracking-tight">
                             Consultation en ligne
@@ -119,50 +160,33 @@ function ExpertsList() {
                         </span>
                     </div>
 
-                    {/* Section d'en-tête */}
-                    {/*<div className="mb-8">*/}
-                    {/*    <div className="flex items-center gap-2 mb-2">*/}
-                    {/*        <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">*/}
-                    {/*            Consultation en ligne*/}
-                    {/*        </span>*/}
-                    {/*    </div>*/}
-                    {/*    <h1 className="text-3xl font-bold text-gray-900 mb-3">*/}
-                    {/*        Trouvez l'expert qu'il vous faut*/}
-                    {/*    </h1>*/}
-                    {/*    <p className="text-gray-600 text-base max-w-3xl">*/}
-                    {/*        Réservez une consultation en ligne de 15 minutes avec un expert qualifié*/}
-                    {/*        et posez vos questions en toute simplicité. Choisissez l'heure et la date*/}
-                    {/*        qui vous conviennent.*/}
-                    {/*    </p>*/}
-                    {/*</div>*/}
-
-                    {/*/!* Filtres par catégorie *!/*/}
-                    {/*<div className="flex gap-2 mb-6 overflow-x-auto pb-2">*/}
-                    {/*    {categories.map((category) => {*/}
-                    {/*        const Icon = category.icon;*/}
-                    {/*        return (*/}
-                    {/*            <button*/}
-                    {/*                key={category.id}*/}
-                    {/*                onClick={() => setSelectedCategory(category.id)}*/}
-                    {/*                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${*/}
-                    {/*                    selectedCategory === category.id*/}
-                    {/*                        ? 'bg-indigo-600 text-white'*/}
-                    {/*                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'*/}
-                    {/*                }`}*/}
-                    {/*            >*/}
-                    {/*                <Icon className="w-4 h-4" />*/}
-                    {/*                {category.name}*/}
-                    {/*            </button>*/}
-                    {/*        );*/}
-                    {/*    })}*/}
-                    {/*</div>*/}
+                    {/* Filtres par catégorie */}
+                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+                        {displayCategories.map((category) => {
+                            const Icon = category.icon;
+                            return (
+                                <button
+                                    key={category.id}
+                                    onClick={() => handleCategoryChange(category.id)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                                        selectedCategory === category.id
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <Icon className="w-4 h-4" />
+                                    {category.name}
+                                </button>
+                            );
+                        })}
+                    </div>
 
                     {/* Barre de recherche */}
                     <div className="mb-6">
                         <div className="relative">
                             <input
                                 type="text"
-                                placeholder="Rechercher un expert par nom, spécialité..."
+                                placeholder="Rechercher un expert par nom..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full px-5 py-3 pl-12 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors text-sm"
@@ -189,7 +213,11 @@ function ExpertsList() {
                     {/* Grille des experts */}
                     {filteredExperts.length === 0 ? (
                         <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
-                            <p className="text-sm text-gray-400">Aucun expert trouvé</p>
+                            <p className="text-sm text-gray-400">
+                                {selectedCategory !== "tous"
+                                    ? `Aucun expert trouvé dans la catégorie "${selectedCategory}"`
+                                    : "Aucun expert trouvé"}
+                            </p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -199,7 +227,7 @@ function ExpertsList() {
                                     to={`/expert/${expert.id}`}
                                     className="block h-full"
                                 >
-                                    <div className="bg-white border border-gray-100 rounded-xl p-6 hover:border-indigo-300 hover:shadow-sm transition-all duration-200 h-full">
+                                    <div className="bg-white border border-gray-100 rounded-xl p-6 hover:border-indigo-300 hover:shadow-sm transition-all duration-200 h-full group">
                                         <div className="flex items-start gap-4">
                                             {/* Photo ou SVG */}
                                             <div className="flex-shrink-0">

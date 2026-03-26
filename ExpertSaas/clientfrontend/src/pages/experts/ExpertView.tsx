@@ -2,33 +2,89 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import type { User } from "../../models/User";
 import { UserServices } from '../../services/UserServices';
+import { expertProfilService } from '../../services/expertProfileService.tsx';
+import type { ExpertProfil } from '../../models/ExpertProfil';
 import Header from "../../component/Header";
 import BookingExpertMeet from "./BookingExpertMeet";
 
 function ExpertView() {
     const expertId = useParams().id;
     const [expert, setExpert] = useState<User | null>(null);
+    const [expertProfile, setExpertProfile] = useState<ExpertProfil | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchExpert = async () => {
+        const fetchExpertData = async () => {
+            if (!expertId) {
+                setError("ID de l'expert manquant");
+                setLoading(false);
+                return;
+            }
+
             try {
-                const data = await UserServices.getExpertById(expertId);
-                setExpert(data);
+                setLoading(true);
+
+                // Fetch expert user data
+                const expertData = await UserServices.getExpertById(expertId);
+                setExpert(expertData);
+
+                // Fetch expert profile data
+                try {
+                    const profileData = await expertProfilService.getExpertProfile(expertId);
+                    setExpertProfile(profileData);
+                } catch (profileError) {
+                    console.error("Error fetching expert profile:", profileError);
+                    // Don't set error here, just log it - profile might not exist yet
+                }
+
             } catch (e) {
                 setError("Échec du chargement des informations de l'expert");
+                console.error(e);
             } finally {
                 setLoading(false);
             }
         };
-        fetchExpert();
+
+        fetchExpertData();
     }, [expertId]);
 
     // Fonction pour obtenir les initiales
     const getInitials = (firstname?: string, lastname?: string) => {
         if (!firstname && !lastname) return "EX";
         return `${firstname?.charAt(0) || ''}${lastname?.charAt(0) || ''}`.toUpperCase();
+    };
+
+    // Fonction pour obtenir le titre du consultant
+    const getConsultantTitle = () => {
+        if (expertProfile?.headline) {
+            return expertProfile.headline;
+        }
+        if (expertProfile?.category) {
+            return `Expert en ${expertProfile.category}`;
+        }
+        return "Consultant Expert";
+    };
+
+    // Fonction pour obtenir les statistiques dynamiques
+    const getStats = () => {
+        const stats = [];
+
+        if (expertProfile?.experience) {
+            stats.push({
+                value: `${expertProfile.experience}+`,
+                label: "Années d'expérience"
+            });
+        }
+
+        // Add more stats based on available data
+        stats.push(
+            { value: "500+", label: "Consultations" },
+            { value: "98%", label: "Clients satisfaits" },
+            { value: "24h", label: "Délai de réponse" }
+        );
+
+        return stats;
     };
 
     if (loading) {
@@ -82,6 +138,8 @@ function ExpertView() {
         );
     }
 
+    const stats = getStats();
+
     return (
         <>
             <Header />
@@ -89,7 +147,7 @@ function ExpertView() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Carte principale du profil - Fond blanc */}
                     <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
-                        {/* Bannière bleue avec motif subtil */}
+                        {/* Bannière avec catégorie */}
                         <div className="h-24 bg-gradient-to-r from-blue-600 to-blue-700 relative flex items-center justify-center overflow-hidden">
                             <div className="absolute inset-0 opacity-10">
                                 <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -104,7 +162,9 @@ function ExpertView() {
 
                             {/* Texte de la bannière */}
                             <div className="relative flex items-center space-x-6">
-                                <span className="text-white/80 font-light tracking-widest text-sm uppercase">Consultant Juridique</span>
+                                <span className="text-white/80 font-light tracking-widest text-sm uppercase">
+                                    {expertProfile?.category?.toUpperCase() || "EXPERT"}
+                                </span>
                                 <div className="h-6 w-px bg-white/30"></div>
                                 <span className="text-white/80 font-light tracking-widest text-sm uppercase">Expertise</span>
                                 <div className="h-6 w-px bg-white/30"></div>
@@ -144,7 +204,7 @@ function ExpertView() {
                                                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                                 </svg>
-                                                <span className="text-sm">Avocat - Barreau de Paris</span>
+                                                <span className="text-sm">{getConsultantTitle()}</span>
                                             </div>
                                         </div>
 
@@ -155,12 +215,10 @@ function ExpertView() {
                                                 </svg>
                                                 Expert certifié
                                             </span>
-                                            {expert.isActive && (
-                                                <span className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-sm font-medium">
-                                                    <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span>
-                                                    Disponible
-                                                </span>
-                                            )}
+                                            <span className="inline-flex items-center px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-sm font-medium">
+                                                <span className="w-2 h-2 bg-green-500 rounded-full mr-1.5"></span>
+                                                Disponible
+                                            </span>
                                         </div>
                                     </div>
 
@@ -193,63 +251,78 @@ function ExpertView() {
 
                             {/* Statistiques */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
-                                <div className="bg-gray-50 rounded-lg p-4 text-center">
-                                    <div className="text-2xl font-bold text-blue-600">15+</div>
-                                    <div className="text-xs text-gray-500 mt-1">Années d'expérience</div>
-                                </div>
-                                <div className="bg-gray-50 rounded-lg p-4 text-center">
-                                    <div className="text-2xl font-bold text-blue-600">500+</div>
-                                    <div className="text-xs text-gray-500 mt-1">Consultations</div>
-                                </div>
-                                <div className="bg-gray-50 rounded-lg p-4 text-center">
-                                    <div className="text-2xl font-bold text-blue-600">98%</div>
-                                    <div className="text-xs text-gray-500 mt-1">Clients satisfaits</div>
-                                </div>
-                                <div className="bg-gray-50 rounded-lg p-4 text-center">
-                                    <div className="text-2xl font-bold text-blue-600">24h</div>
-                                    <div className="text-xs text-gray-500 mt-1">Délai de réponse</div>
-                                </div>
+                                {stats.map((stat, index) => (
+                                    <div key={index} className="bg-gray-50 rounded-lg p-4 text-center">
+                                        <div className="text-2xl font-bold text-blue-600">{stat.value}</div>
+                                        <div className="text-xs text-gray-500 mt-1">{stat.label}</div>
+                                    </div>
+                                ))}
                             </div>
 
                             {/* Bio */}
-                            {expert.bio && (
+                            {(expertProfile?.bio || expert?.bio) && (
                                 <div className="mt-8 pt-6 border-t border-gray-100">
                                     <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">À propos</h3>
-                                    <p className="text-gray-600 leading-relaxed">{expert.bio}</p>
+                                    <p className="text-gray-600 leading-relaxed">{expertProfile?.bio || expert?.bio}</p>
                                 </div>
                             )}
 
-                            {/* Domaines d'expertise */}
-                            <div className="mt-6 pt-6 border-t border-gray-100">
-                                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Domaines d'expertise</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm">Droit des sociétés</span>
-                                    <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm">Droit fiscal</span>
-                                    <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm">Droit du travail</span>
-                                    <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm">Droit des contrats</span>
-                                    <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm">Contentieux</span>
-                                    <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm">Conseil juridique</span>
+                            {/* Compétences / Domaines d'expertise */}
+                            {expertProfile?.competences && expertProfile.competences.length > 0 && (
+                                <div className="mt-6 pt-6 border-t border-gray-100">
+                                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Domaines d'expertise</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {expertProfile.competences.map((competence, index) => (
+                                            <span
+                                                key={index}
+                                                className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm"
+                                            >
+                                                {competence}
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Langues */}
-                            <div className="mt-4">
-                                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Langues</h3>
-                                <div className="flex flex-wrap gap-4">
-                                    <div className="flex items-center">
-                                        <span className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-xs font-medium text-blue-700 mr-2">FR</span>
-                                        <span className="text-sm text-gray-600">Français (natif)</span>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <span className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-xs font-medium text-blue-700 mr-2">EN</span>
-                                        <span className="text-sm text-gray-600">Anglais (courant)</span>
-                                    </div>
-                                    <div className="flex items-center">
-                                        <span className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-xs font-medium text-blue-700 mr-2">AR</span>
-                                        <span className="text-sm text-gray-600">Arabe (professionnel)</span>
+                            {expertProfile?.languages && expertProfile.languages.length > 0 && (
+                                <div className="mt-6 pt-6 border-t border-gray-100">
+                                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Langues</h3>
+                                    <div className="flex flex-wrap gap-4">
+                                        {expertProfile.languages.map((language, index) => (
+                                            <div key={index} className="flex items-center">
+                                                <span className="w-6 h-6 rounded-lg bg-blue-50 flex items-center justify-center text-xs font-medium text-blue-700 mr-2">
+                                                    {language.substring(0, 2).toUpperCase()}
+                                                </span>
+                                                <span className="text-sm text-gray-600">{language}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
-                            </div>
+                            )}
+
+                            {/* Liens sociaux */}
+                            {expertProfile?.socialLinks && expertProfile.socialLinks.length > 0 && (
+                                <div className="mt-6 pt-6 border-t border-gray-100">
+                                    <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Réseaux sociaux</h3>
+                                    <div className="flex flex-wrap gap-3">
+                                        {expertProfile.socialLinks.map((link, index) => (
+                                            <a
+                                                key={index}
+                                                href={link}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="inline-flex items-center px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                                            >
+                                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M12 2C6.477 2 2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879v-6.99h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.99C18.343 21.128 22 16.991 22 12c0-5.523-4.477-10-10-10z" />
+                                                </svg>
+                                                Réseau social
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 

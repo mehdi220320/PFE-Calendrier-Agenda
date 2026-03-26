@@ -6,10 +6,6 @@ interface Category {
     nb_of_profiles: number;
 }
 
-interface ApiResponse {
-    message?: string;
-    updatedCount?: number;
-}
 
 const CategoriesManagement = () => {
     const [categories, setCategories] = useState<Category[]>([]);

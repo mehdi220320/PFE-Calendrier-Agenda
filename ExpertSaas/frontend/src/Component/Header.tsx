@@ -214,7 +214,7 @@ function Header() {
                                                 {/* Profile */}
                                                 <button
                                                     onClick={() => {
-                                                        navigate('/profile');
+                                                        navigate('/myprofile');
                                                         setIsProfileMenuOpen(false);
                                                     }}
                                                     className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors group"

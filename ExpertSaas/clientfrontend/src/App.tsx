@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import {type JSX, useEffect, useState} from 'react';
 import HomePage from "./pages/home/HomePage.tsx";
 import ExpertsList from "./pages/experts/ExpertsList.tsx";
 import ExpertView from "./pages/experts/ExpertView.tsx";
@@ -8,7 +8,7 @@ import { authService } from "./services/authService";
 import MyMeetingView from "./pages/meeting/MyMeetingView.tsx";
 import Calendar from "./pages/calendar/Calendar.tsx";
 import JitsiRoom from "./pages/meeting/JitsiRoom.tsx";
-import NotificationBell from "./component/NotificationBell.tsx"
+
 const LoadingSpinner = () => (
     <div className="fixed inset-0 flex items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -30,7 +30,6 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
 
         checkAuth();
 
-        // Optional: Listen for storage events (if user logs out in another tab)
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === 'isLoggedIn' || e.key === 'google_tokens') {
                 checkAuth();

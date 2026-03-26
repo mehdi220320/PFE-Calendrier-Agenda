@@ -122,7 +122,6 @@ router.get("/events", async (req, res) => {
     }
 });
 
-// Create a meeting
 router.post("/create-meeting", async (req, res) => {
     try {
         const tokens = await getGoogleTokens(req);
@@ -203,7 +202,6 @@ router.post("/create-meeting", async (req, res) => {
     }
 });
 
-// Connect Google account (you'll need to implement this based on your OAuth flow)
 router.get("/connect-google", (req, res) => {
     const oauth2Client = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,

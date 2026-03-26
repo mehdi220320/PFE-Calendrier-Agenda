@@ -7,6 +7,7 @@ const Break = require("../agenda/Break");
 const GoogleAccount=require("./GoogleAccount")
 const  Meeting = require('../meeting/Meeting');
 const Notification=require("../notification/Notification");
+const ExpertProfile=require("../expertProfile/ExpertProfile")
 User.hasOne(Token, {
     foreignKey: "userId",
     onDelete: "CASCADE",
@@ -74,3 +75,12 @@ Meeting.hasMany(Notification, {
     foreignKey: "meeting",
     as: "notifications"
 });
+
+User.hasOne(ExpertProfile,{
+    foreignKey: "expert",
+    onDelete: "CASCADE",
+})
+ExpertProfile.belongsTo(User,{
+    foreignKey: "expert",
+    as: "expertUser"
+})

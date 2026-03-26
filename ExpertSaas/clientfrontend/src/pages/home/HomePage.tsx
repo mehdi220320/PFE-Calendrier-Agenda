@@ -1,45 +1,71 @@
+import { useEffect, useState } from "react";
 import {
     Calendar, Briefcase, Users, UserCog, Scale, DollarSign, Bell, Star, Phone, Video, Building2, ChevronRight,
-    ArrowRight, Clock, Plus, CalendarCheck, Sparkles, TrendingUp, Award, Shield, CheckCircle, MessageCircle
+    ArrowRight, Clock, Plus, CalendarCheck, Sparkles, TrendingUp, Award, Shield, CheckCircle, MessageCircle, HelpCircle
 } from "lucide-react";
 import Header from "../../component/Header.tsx";
+import expertProfileService from "../../services/expertProfileService.tsx"
 
 function HomePage() {
-    const expertCategories = [
-        {
-            id: "juridique",
-            title: "Consultant Juridique",
-            description: "Conseils en droit des affaires, contrats, propriété intellectuelle et litiges",
-            icon: Scale,
-            expertsCount: 24,
-            color: "indigo",
-            bgColor: "bg-indigo-100",
-            textColor: "text-indigo-600",
-            stats: "24 experts disponibles"
-        },
-        {
-            id: "financier",
-            title: "Consultant Financier",
-            description: "Stratégies d'investissement, fiscalité, gestion de patrimoine et audit",
-            icon: DollarSign,
-            expertsCount: 18,
-            color: "green",
-            bgColor: "bg-green-100",
-            textColor: "text-green-600",
-            stats: "18 experts disponibles"
-        },
-        {
-            id: "divers",
-            title: "Consultant Divers",
-            description: "Expertises variées : RH, marketing, stratégie, développement personnel",
-            icon: UserCog,
-            expertsCount: 32,
-            color: "blue",
-            bgColor: "bg-blue-100",
-            textColor: "text-blue-600",
-            stats: "32 experts disponibles"
+    const [categories, setCategories] = useState<{ category: string, nb_of_profiles: number }[]>([]);
+    const [loadingCategories, setLoadingCategories] = useState(true);
+
+    const getCategoryIcon = (categoryName: string) => {
+        const categoryMap: { [key: string]: { icon: any, bgColor: string, textColor: string } } = {
+            "Consultant Juridique": { icon: Scale, bgColor: "bg-indigo-100", textColor: "text-indigo-600" },
+            "juridique": { icon: Scale, bgColor: "bg-indigo-100", textColor: "text-indigo-600" },
+            "Consultant Financier": { icon: DollarSign, bgColor: "bg-green-100", textColor: "text-green-600" },
+            "financier": { icon: DollarSign, bgColor: "bg-green-100", textColor: "text-green-600" },
+            "Consultant Divers": { icon: UserCog, bgColor: "bg-blue-100", textColor: "text-blue-600" },
+            "divers": { icon: UserCog, bgColor: "bg-blue-100", textColor: "text-blue-600" },
+        };
+
+        const lowerCaseName = categoryName.toLowerCase();
+        const matchedKey = Object.keys(categoryMap).find(key =>
+            key.toLowerCase() === lowerCaseName || key === categoryName
+        );
+
+        if (matchedKey) {
+            return categoryMap[matchedKey];
         }
-    ];
+
+        // Default icon for other categories
+        return { icon: HelpCircle, bgColor: "bg-gray-100", textColor: "text-gray-600" };
+    };
+
+    const getCategoryDescription = (categoryName: string): string => {
+        const descriptions: { [key: string]: string } = {
+            "Consultant Juridique": "Conseils en droit des affaires, contrats, propriété intellectuelle et litiges",
+            "juridique": "Conseils en droit des affaires, contrats, propriété intellectuelle et litiges",
+            "Consultant Financier": "Stratégies d'investissement, fiscalité, gestion de patrimoine et audit",
+            "financier": "Stratégies d'investissement, fiscalité, gestion de patrimoine et audit",
+            "Consultant Divers": "Expertises variées : RH, marketing, stratégie, développement personnel",
+            "divers": "Expertises variées : RH, marketing, stratégie, développement personnel",
+        };
+
+        const lowerCaseName = categoryName.toLowerCase();
+        const matchedKey = Object.keys(descriptions).find(key =>
+            key.toLowerCase() === lowerCaseName || key === categoryName
+        );
+
+        return matchedKey ? descriptions[matchedKey] : `Expertise en ${categoryName.toLowerCase()} avec des professionnels qualifiés`;
+    };
+
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                setLoadingCategories(true);
+                const categoriesData = await expertProfileService.getCategories();
+                setCategories(categoriesData);
+            } catch (error) {
+                console.error("Error fetching categories:", error);
+            } finally {
+                setLoadingCategories(false);
+            }
+        };
+
+        fetchCategories();
+    }, []);
 
     const upcomingEvents = [
         {
@@ -84,8 +110,9 @@ function HomePage() {
     ];
 
     const handleExpertClick = (categoryId: string) => {
-        // window.location.href = `/experts?categorie=${categoryId}`;
-        window.location.href = `/experts`;
+        // Encode the category name for URL
+        const encodedCategory = encodeURIComponent(categoryId);
+        window.location.href = `/experts?categorie=${encodedCategory}`;
     };
 
     return (
@@ -93,7 +120,7 @@ function HomePage() {
             <Header />
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-22">
-     
+
                 {/* Hero Section - E-Tafakna Réunion */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8">
                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -191,7 +218,8 @@ function HomePage() {
                         </div>
                     </div>
                 </div>
-                {/* Section Consultation Experts */}
+
+                {/* Section Consultation Experts - Dynamique */}
                 <section className="mb-12">
                     <div className="flex items-center justify-between mb-6">
                         <div>
@@ -205,44 +233,59 @@ function HomePage() {
                         </button>
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-6">
-                        {expertCategories.map((category) => {
-                            const Icon = category.icon;
-                            return (
-                                <div
-                                    key={category.id}
-                                    onClick={() => handleExpertClick(category.id)}
-                                    className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-100"
-                                >
-                                    <div className="p-6">
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className={`${category.bgColor} p-3 rounded-xl`}>
-                                                <Icon className={`w-8 h-8 ${category.textColor}`} />
+                    {loadingCategories ? (
+                        <div className="flex justify-center items-center py-12">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                        </div>
+                    ) : (
+                        <div className="grid md:grid-cols-3 gap-6">
+                            {categories.map((category) => {
+                                const { icon: Icon, bgColor, textColor } = getCategoryIcon(category.category);
+                                const description = getCategoryDescription(category.category);
+
+                                return (
+                                    <div
+                                        key={category.category}
+                                        onClick={() => handleExpertClick(category.category)}
+                                        className="group bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-100"
+                                    >
+                                        <div className="p-6">
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div className={`${bgColor} p-3 rounded-xl`}>
+                                                    <Icon className={`w-8 h-8 ${textColor}`} />
+                                                </div>
+                                                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                                    {category.nb_of_profiles} {category.nb_of_profiles === 1 ? 'expert' : 'experts'}
+                                                </span>
                                             </div>
-                                            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                                {category.expertsCount} experts
-                                            </span>
-                                        </div>
-                                        <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">
-                                            {category.title}
-                                        </h3>
-                                        <p className="text-gray-600 text-sm mb-4">
-                                            {category.description}
-                                        </p>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs text-gray-500">
-                                                Disponibles immédiatement
-                                            </span>
-                                            <div className="flex items-center text-indigo-600 text-sm font-medium">
-                                                <span>Consulter</span>
-                                                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                                            <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">
+                                                {category.category}
+                                            </h3>
+                                            <p className="text-gray-600 text-sm mb-4">
+                                                {description}
+                                            </p>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs text-gray-500">
+                                                    Disponibles immédiatement
+                                                </span>
+                                                <div className="flex items-center text-indigo-600 text-sm font-medium">
+                                                    <span>Consulter</span>
+                                                    <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {!loadingCategories && categories.length === 0 && (
+                        <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
+                            <HelpCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                            <p className="text-gray-500">Aucune catégorie d'expert disponible pour le moment.</p>
+                        </div>
+                    )}
                 </section>
 
                 {/* Section Pourquoi nous choisir */}

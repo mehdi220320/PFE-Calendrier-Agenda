@@ -65,6 +65,25 @@ export const expertProfilService = {
             console.error(e);
             throw e;
         }
+    },
+    updateMyProfile:async(data: Partial<ExpertProfilData>):Promise<ExpertProfil>=>{
+        try {
+            const response = await api.put<{ profile: ExpertProfil }>(`/myprofile`,data );
+            return response.data.profile;
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
+    },
+    getMyProfile:async ():Promise<ExpertProfil>=>{
+        try{
+            const response = await api.get(`/myprofile` );
+            return response.data.profile;
+        }
+        catch (e) {
+            console.error(e);
+            throw e;
+        }
     }
 }
 

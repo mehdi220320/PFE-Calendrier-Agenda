@@ -11,6 +11,7 @@ import PlanificationPage from "./pages/calendar/PlanificationPage.tsx";
 import AvailabilityPage from "./pages/calendar/AvailabilityPage.tsx";
 import MyMeetingView from "./pages/meeting/MyMeetingView.tsx";
 import JitsiRoom from "./pages/meeting/JitsiRoom.tsx";
+import MyProfilePage from "./pages/myProfile/MyProfilePage.tsx";
 
 const Users = lazy(() => import('./admin/pages/users/Users.tsx'));
 const Meetings = lazy(() => import('./admin/pages/Meetings.tsx'));
@@ -41,11 +42,11 @@ function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/planification" element={<ProtectedRoute><PlanificationPage /></ProtectedRoute>} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+                <Route path="/myprofile" element={<ProtectedRoute><MyProfilePage /></ProtectedRoute>} />
                 <Route path="/myavailability" element={<ProtectedRoute><AvailabilityPage /></ProtectedRoute>} />
                 <Route path="/mymeetings" element={<ProtectedRoute><MyMeetingView /></ProtectedRoute>} />
                 <Route
