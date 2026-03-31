@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { expertProfilService } from '../../../../services/expertProfileService.tsx';
-import {type ExpertProfile , type ExpertProfileData } from '../../../../models/ExpertProfil.tsx'
-
+import { type ExpertProfile, type ExpertProfileData } from '../../../../models/ExpertProfil.tsx';
+import { type User } from '../../../../models/User.tsx';
 
 interface EditExpertProfileProps {
     show: boolean;
     onClose: () => void;
     expertId: string;
+    expertUserData?: User | null;
     onProfileUpdated: () => void;
+    onUserPictureUpdated?: (updatedUser: User) => void;
 }
 
 const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                                                                  show,
                                                                  onClose,
                                                                  expertId,
-                                                                 onProfileUpdated
+                                                                 expertUserData,
+                                                                 onProfileUpdated,
+                                                                 onUserPictureUpdated
                                                              }) => {
     const [profile, setProfile] = useState<ExpertProfile | null>(null);
     const [loading, setLoading] = useState(false);
@@ -28,6 +32,9 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
     const [loadingCategories, setLoadingCategories] = useState(false);
     const [showOtherCategoryInput, setShowOtherCategoryInput] = useState(false);
     const [otherCategoryValue, setOtherCategoryValue] = useState('');
+    const [selectedPicture, setSelectedPicture] = useState<File | null>(null);
+    const [picturePreview, setPicturePreview] = useState<string | null>(null);
+    const [uploadingPicture, setUploadingPicture] = useState(false);
 
     const defaultCategories = [
         "Consultant Juridique",
@@ -39,8 +46,23 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
         if (show && expertId) {
             fetchProfile();
             fetchCategories();
+            // Set picture preview from existing user data if available
+            if (expertUserData?.picture) {
+                setPicturePreview(expertUserData.picture);
+            }
         }
-    }, [show, expertId]);
+    }, [show, expertId, expertUserData]);
+
+    // Clean up preview URL when component unmounts
+    useEffect(() => {
+        if (!show) {
+            if (picturePreview && picturePreview.startsWith('blob:')) {
+                URL.revokeObjectURL(picturePreview);
+            }
+            setSelectedPicture(null);
+            setPicturePreview(null);
+        }
+    }, [show, picturePreview]);
 
     const fetchCategories = async () => {
         try {
@@ -92,6 +114,70 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
             }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                setError('La taille de l\'image ne doit pas dépasser 5MB');
+                return;
+            }
+
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                setError('Seules les images sont acceptées');
+                return;
+            }
+
+            setSelectedPicture(file);
+
+            // Create preview
+            if (picturePreview && picturePreview.startsWith('blob:')) {
+                URL.revokeObjectURL(picturePreview);
+            }
+            const preview = URL.createObjectURL(file);
+            setPicturePreview(preview);
+        }
+    };
+
+    const uploadUserPicture = async (): Promise<string | null> => {
+        if (!selectedPicture) return expertUserData?.picture || null;
+
+        try {
+            setUploadingPicture(true);
+            const token = localStorage.getItem('token');
+            const formData = new FormData();
+            formData.append('picture', selectedPicture);
+
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/picture/${expertId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to upload picture');
+            }
+
+            const result = await response.json();
+
+            // Notify parent component about picture update
+            if (onUserPictureUpdated && result.user) {
+                onUserPictureUpdated(result.user);
+            }
+
+            return result.user.picture;
+        } catch (err) {
+            console.error('Error uploading picture:', err);
+            setError('Erreur lors du téléchargement de la photo');
+            return expertUserData?.picture || null;
+        } finally {
+            setUploadingPicture(false);
         }
     };
 
@@ -180,6 +266,10 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
 
         try {
             setLoading(true);
+
+            // Upload picture if selected
+            const pictureUrl = await uploadUserPicture();
+
             await expertProfilService.addExpertProfile({
                 expertId: profile.expert,
                 category: profile.category || '',
@@ -190,6 +280,7 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                 socialLinks: profile.socialLinks,
                 experience: profile.experience
             });
+
             setIsCreating(false);
             setIsEditing(false);
             onProfileUpdated();
@@ -206,6 +297,10 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
 
         try {
             setLoading(true);
+
+            // Upload picture if selected
+            const pictureUrl = await uploadUserPicture();
+
             await expertProfilService.updateExpertProfile(profile.id, {
                 category: profile.category || undefined,
                 headline: profile.headline || undefined,
@@ -215,6 +310,7 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                 socialLinks: profile.socialLinks,
                 experience: profile.experience
             });
+
             setIsEditing(false);
             onProfileUpdated();
             onClose();
@@ -241,6 +337,13 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
         } else {
             setIsEditing(false);
             fetchProfile();
+            // Reset picture preview to original
+            if (expertUserData?.picture) {
+                setPicturePreview(expertUserData.picture);
+            } else {
+                setPicturePreview(null);
+            }
+            setSelectedPicture(null);
         }
     };
 
@@ -290,6 +393,43 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                             </div>
                         ) : profile ? (
                             <div className="space-y-4">
+                                {/* Picture Upload Section */}
+                                {isEditing && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Photo de profil
+                                        </label>
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex-shrink-0">
+                                                {picturePreview ? (
+                                                    <img
+                                                        src={picturePreview}
+                                                        alt="Preview"
+                                                        className="h-20 w-20 rounded-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="h-20 w-20 rounded-full bg-gray-200 flex items-center justify-center">
+                                                        <svg className="h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                        </svg>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={handlePictureChange}
+                                                    className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                                />
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    JPG, PNG, GIF (max. 5MB)
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Catégorie
@@ -560,10 +700,10 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    disabled={loading}
+                                    disabled={loading || uploadingPicture}
                                     className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
                                 >
-                                    {loading ? (isCreating ? 'Création...' : 'Enregistrement...') : (isCreating ? 'Créer le profil' : 'Enregistrer')}
+                                    {loading || uploadingPicture ? (isCreating ? 'Création...' : 'Enregistrement...') : (isCreating ? 'Créer le profil' : 'Enregistrer')}
                                 </button>
                             </>
                         ) : null}

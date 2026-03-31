@@ -1,11 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { expertProfilService } from '../../../../services/expertProfileService.tsx';
-import {  type ExpertProfileData } from '../../../../models/ExpertProfil.tsx'
-import {  type NewUser } from '../../../../models/User.tsx'
-
-
-
-
+import { type ExpertProfileData } from '../../../../models/ExpertProfil.tsx'
+import { type NewUser } from '../../../../models/User.tsx'
 
 interface AddUserProps {
     show: boolean;
@@ -55,6 +51,8 @@ const AddUser: React.FC<AddUserProps> = ({
     const [otherCategoryValue, setOtherCategoryValue] = useState('');
     const [isCreatingUser, setIsCreatingUser] = useState(false);
     const [isCreatingProfile, setIsCreatingProfile] = useState(false);
+    const [selectedPicture, setSelectedPicture] = useState<File | null>(null);
+    const [picturePreview, setPicturePreview] = useState<string | null>(null);
 
     // Fetch categories from backend
     useEffect(() => {
@@ -62,6 +60,17 @@ const AddUser: React.FC<AddUserProps> = ({
             fetchCategories();
         }
     }, [show, step]);
+
+    // Clean up preview URL when component unmounts or modal closes
+    useEffect(() => {
+        if (!show) {
+            if (picturePreview) {
+                URL.revokeObjectURL(picturePreview);
+                setPicturePreview(null);
+            }
+            setSelectedPicture(null);
+        }
+    }, [show, picturePreview]);
 
     const fetchCategories = async () => {
         try {
@@ -71,7 +80,6 @@ const AddUser: React.FC<AddUserProps> = ({
                 .map(item => item.category)
                 .filter(cat => cat && cat !== 'null' && cat !== '');
 
-            // Add default categories if not exist
             const defaultCategories = [
                 "Consultant Juridique",
                 "Consultant Financier",
@@ -82,7 +90,6 @@ const AddUser: React.FC<AddUserProps> = ({
             setCategories(allCategories);
         } catch (err) {
             console.error('Error fetching categories:', err);
-            // Fallback to default categories
             setCategories([
                 "Consultant Juridique",
                 "Consultant Financier",
@@ -162,6 +169,11 @@ const AddUser: React.FC<AddUserProps> = ({
         setOtherCategoryValue('');
         setIsCreatingUser(false);
         setIsCreatingProfile(false);
+        if (picturePreview) {
+            URL.revokeObjectURL(picturePreview);
+            setPicturePreview(null);
+        }
+        setSelectedPicture(null);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -172,6 +184,32 @@ const AddUser: React.FC<AddUserProps> = ({
         }));
         if (formErrors[name as keyof NewUser]) {
             setFormErrors(prev => ({ ...prev, [name]: undefined }));
+        }
+    };
+
+    const handlePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                setError('La taille de l\'image ne doit pas dépasser 5MB');
+                return;
+            }
+
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                setError('Seules les images sont acceptées');
+                return;
+            }
+
+            setSelectedPicture(file);
+
+            // Create preview
+            if (picturePreview) {
+                URL.revokeObjectURL(picturePreview);
+            }
+            const preview = URL.createObjectURL(file);
+            setPicturePreview(preview);
         }
     };
 
@@ -265,13 +303,26 @@ const AddUser: React.FC<AddUserProps> = ({
     const createUser = async (): Promise<string> => {
         try {
             const token = localStorage.getItem('token');
+            const formDataToSend = new FormData();
+
+            // Append all form fields
+            formDataToSend.append('firstname', formData.firstname);
+            formDataToSend.append('lastname', formData.lastname);
+            formDataToSend.append('email', formData.email);
+            formDataToSend.append('phone', formData.phone || '');
+            formDataToSend.append('role', formData.role);
+
+            // Append picture if selected
+            if (selectedPicture) {
+                formDataToSend.append('picture', selectedPicture);
+            }
+
             const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/users/adduser`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                    'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(formData)
+                body: formDataToSend
             });
 
             if (!response.ok) {
@@ -409,6 +460,43 @@ const AddUser: React.FC<AddUserProps> = ({
                                     </div>
 
                                     <div className="space-y-4">
+                                        {/* Picture Upload - Only for Experts */}
+                                        {formData.role === 'expert' && (
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Photo de profil
+                                                </label>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex-shrink-0">
+                                                        {picturePreview ? (
+                                                            <img
+                                                                src={picturePreview}
+                                                                alt="Preview"
+                                                                className="h-16 w-16 rounded-full object-cover"
+                                                            />
+                                                        ) : (
+                                                            <div className="h-16 w-16 rounded-full bg-gray-200 flex items-center justify-center">
+                                                                <svg className="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                                                </svg>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            onChange={handlePictureChange}
+                                                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                                        />
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            JPG, PNG, GIF (max. 5MB)
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">

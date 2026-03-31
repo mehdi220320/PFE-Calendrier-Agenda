@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { expertProfilService } from '../../services/expertProfileService.tsx';
 import type { ExpertProfil } from '../../models/ExpertProfil.tsx';
-import Header from '../../component/Header';
+import Header from '../../Component/Header';
 import ProfileView from './ProfileView';
 import EditProfileForm from './EditProfileForm';
 

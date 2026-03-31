@@ -4,7 +4,88 @@ const router = express.Router();
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 const { adminAuthorization,googleAuth } = require('../middleware/authMiddleware');
+const multer = require('multer');
+const streamifier =require('streamifier');
+const cloudinary = require('cloudinary').v2;
 
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+const uploadToCloudinary = (fileBuffer) => {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { folder: 'users' }, // optional folder
+            (error, result) => {
+                if (result) resolve(result);
+                else reject(error);
+            }
+        );
+
+        streamifier.createReadStream(fileBuffer).pipe(stream);
+    });
+};
+router.post('/adduser',adminAuthorization, upload.single('picture'),async (req, res) => {
+    try {
+        const { firstname, lastname, email, phone, role  } = req.body;
+        const password= generatePassword(12)
+        console.log("password generated ahawa ", password)
+        const existingUser = await User.findOne({ where: { email } });
+
+        if (existingUser) {
+            return res.status(400).send({ message: "User already exists" });
+        }
+        let photoUrl = null;
+
+        if (req.file) {
+            const result = await uploadToCloudinary(req.file.buffer);
+            photoUrl = result.secure_url;
+        }
+        const user = await User.create({
+            firstname,
+            lastname,
+            email,
+            phone,
+            password,
+            role,
+            picture:photoUrl
+        });
+        try {
+            await sendAccountCreationEmail(email, firstname, password);
+            console.log(`Email sent successfully to ${email}`);
+        } catch (emailError) {
+            console.error('Error sending email:', emailError);
+        }
+        const userResponse = user.toJSON();
+        delete userResponse.password;
+        res.status(201).send({
+            message: "Expert registered successfully",
+            user
+        });
+
+    } catch (e) {
+        res.status(500).send({ message: e.message });
+    }
+});
+
+router.patch('/picture/:id',adminAuthorization,upload.single('picture'),async(req,res)=>{
+    try {
+        const id=req.params.id;
+        let user=await User.findByPk(id);
+        let photoUrl = null;
+
+        if (req.file) {
+            const result = await uploadToCloudinary(req.file.buffer);
+            photoUrl = result.secure_url;
+        }else{
+            res.status(401).json({error:"picture not found"});
+        }
+        user.picture=photoUrl;
+        await user.save();
+        res.status(200).json({message:"picture updated successfuly",user:user})
+    }catch (e) {
+        res.status(500).json({message:e.message})
+    }
+})
 
 function generatePassword(length = 12) {
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
@@ -239,42 +320,6 @@ async function sendAccountCreationEmail(userEmail, userFirstname, generatedPassw
     await transporter.sendMail(mailOptions);
 }
 
-router.post('/adduser',adminAuthorization, async (req, res) => {
-    try {
-        const { firstname, lastname, email, phone, role  } = req.body;
-        const password= generatePassword(12)
-        console.log("password generated ahawa ", password)
-        const existingUser = await User.findOne({ where: { email } });
-
-        if (existingUser) {
-            return res.status(400).send({ message: "User already exists" });
-        }
-
-        const user = await User.create({
-            firstname,
-            lastname,
-            email,
-            phone,
-            password,
-            role,
-        });
-        try {
-            await sendAccountCreationEmail(email, firstname, password);
-            console.log(`Email sent successfully to ${email}`);
-        } catch (emailError) {
-            console.error('Error sending email:', emailError);
-        }
-        const userResponse = user.toJSON();
-        delete userResponse.password;
-        res.status(201).send({
-            message: "Expert registered successfully",
-            user
-        });
-
-    } catch (e) {
-        res.status(500).send({ message: e.message });
-    }
-});
 
 router.get('/all',adminAuthorization,async (req,res)=>{
     try {

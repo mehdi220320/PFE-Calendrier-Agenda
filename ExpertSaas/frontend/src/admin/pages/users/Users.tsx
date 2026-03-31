@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '../../components/Header.tsx';
 import AddUser from './components/AddUser.tsx';
 import EditExpertProfile from './components/EditExpertProfile.tsx'
-import {  type User } from '../../../models/User.tsx'
-
+import { type User } from '../../../models/User.tsx'
 
 interface ApiResponse {
     messsage: string;
@@ -29,6 +28,7 @@ const Users = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditProfile, setShowEditProfile] = useState(false);
     const [selectedExpertId, setSelectedExpertId] = useState<string | null>(null);
+    const [selectedExpertData, setSelectedExpertData] = useState<User | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const usersPerPage = 5;
 
@@ -54,7 +54,7 @@ const Users = () => {
             const data: ApiResponse = await response.json();
             setUsers(data.users);
             setError(null);
-            setCurrentPage(1); // Reset to first page when fetching new data
+            setCurrentPage(1);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
         } finally {
@@ -173,6 +173,14 @@ const Users = () => {
         }
 
         return pageNumbers;
+    };
+
+    const handleUpdateUserPicture = (updatedUser: User) => {
+        setUsers(prevUsers =>
+            prevUsers.map(user =>
+                user.id === updatedUser.id ? updatedUser : user
+            )
+        );
     };
 
     if (loading && users.length === 0) {
@@ -306,7 +314,7 @@ const Users = () => {
                                     value={searchTerm}
                                     onChange={(e) => {
                                         setSearchTerm(e.target.value);
-                                        setCurrentPage(1); // Reset to first page on search
+                                        setCurrentPage(1);
                                     }}
                                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                 />
@@ -320,7 +328,7 @@ const Users = () => {
                                 value={roleFilter}
                                 onChange={(e) => {
                                     setRoleFilter(e.target.value);
-                                    setCurrentPage(1); // Reset to first page on filter change
+                                    setCurrentPage(1);
                                 }}
                                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
@@ -335,7 +343,7 @@ const Users = () => {
                                 value={statusFilter}
                                 onChange={(e) => {
                                     setStatusFilter(e.target.value);
-                                    setCurrentPage(1); // Reset to first page on filter change
+                                    setCurrentPage(1);
                                 }}
                                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
@@ -435,6 +443,7 @@ const Users = () => {
                                                         <button
                                                             onClick={() => {
                                                                 setSelectedExpertId(user.id);
+                                                                setSelectedExpertData(user);
                                                                 setShowEditProfile(true);
                                                             }}
                                                             className="text-green-600 hover:text-green-900 transition-colors"
@@ -450,7 +459,6 @@ const Users = () => {
                                                     </button>
                                                 </div>
                                             </td>
-
                                         </tr>
                                     ))
                                 ) : (
@@ -480,7 +488,6 @@ const Users = () => {
                                         <button
                                             onClick={handlePreviousPage}
                                             disabled={currentPage === 1}
-
                                             className={`px-3 py-1 border rounded-md text-sm transition-colors ${
                                                 currentPage === 1
                                                     ? 'border-gray-200 text-gray-400 cursor-not-allowed'
@@ -512,7 +519,6 @@ const Users = () => {
 
                                         <button
                                             onClick={handleNextPage}
-
                                             disabled={currentPage === totalPages}
                                             className={`px-3 py-1 border rounded-md text-sm transition-colors ${
                                                 currentPage === totalPages
@@ -529,16 +535,19 @@ const Users = () => {
                     </div>
                 </main>
             </div>
-            // Ajouter le composant EditExpertProfile à la fin
+            {/* Edit Expert Profile Component */}
             {showEditProfile && selectedExpertId && (
                 <EditExpertProfile
                     show={showEditProfile}
                     onClose={() => {
                         setShowEditProfile(false);
                         setSelectedExpertId(null);
+                        setSelectedExpertData(null);
                     }}
                     expertId={selectedExpertId}
+                    expertUserData={selectedExpertData}
                     onProfileUpdated={fetchUsers}
+                    onUserPictureUpdated={handleUpdateUserPicture}
                 />
             )}
             {/* Add User component */}
@@ -552,9 +561,6 @@ const Users = () => {
             />
         </>
     );
-
-
-
 };
 
 export default Users;

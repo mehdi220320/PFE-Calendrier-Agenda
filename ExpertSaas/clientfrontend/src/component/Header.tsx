@@ -40,7 +40,7 @@ function Header() {
                                 }`}
                             >
                                 <Briefcase className="h-4 w-4" />
-                                <span>Offres d'emploi</span>
+                                <span>Dashboard</span>
                             </Link>
 
                             <Link
