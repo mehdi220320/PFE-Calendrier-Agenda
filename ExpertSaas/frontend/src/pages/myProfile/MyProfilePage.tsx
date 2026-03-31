@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { expertProfilService } from '../../services/expertProfileService.tsx';
+import { userService } from '../../services/userService.tsx';
 import type { ExpertProfil } from '../../models/ExpertProfil.tsx';
+import type { User } from '../../models/User.tsx';
 import Header from '../../Component/Header';
 import ProfileView from './ProfileView';
 import EditProfileForm from './EditProfileForm';
@@ -9,6 +11,7 @@ import EditProfileForm from './EditProfileForm';
 const MyProfilePage: React.FC = () => {
     const navigate = useNavigate();
     const [profile, setProfile] = useState<ExpertProfil | null>(null);
+    const [userData, setUserData] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -16,23 +19,32 @@ const MyProfilePage: React.FC = () => {
     const [categories, setCategories] = useState<{ category: string; nb_of_profiles: number }[]>([]);
 
     useEffect(() => {
-        fetchProfile();
+        fetchUserAndProfile();
         fetchCategories();
     }, []);
 
-    const fetchProfile = async () => {
+    const fetchUserAndProfile = async () => {
         try {
             setLoading(true);
-            const data = await expertProfilService.getMyProfile();
-            setProfile(data);
+            // Fetch user data first
+            const user = await userService.getMyData();
+            setUserData(user);
+
+            // Then fetch expert profile
+            try {
+                const data = await expertProfilService.getMyProfile();
+                setProfile(data);
+            } catch (err: any) {
+                if (err.response?.status === 404) {
+                    setError('Profil non trouvé. Veuillez créer votre profil d\'abord.');
+                } else {
+                    console.error('Error fetching profile:', err);
+                }
+            }
             setError(null);
         } catch (err: any) {
-            if (err.response?.status === 404) {
-                setError('Profil non trouvé. Veuillez créer votre profil d\'abord.');
-            } else {
-                setError('Échec du chargement du profil. Veuillez réessayer plus tard.');
-            }
-            console.error('Erreur lors du chargement du profil:', err);
+            setError('Échec du chargement des données. Veuillez réessayer plus tard.');
+            console.error('Erreur lors du chargement:', err);
         } finally {
             setLoading(false);
         }
@@ -63,6 +75,22 @@ const MyProfilePage: React.FC = () => {
         }
     };
 
+    const handleUpdatePicture = async (file: File) => {
+        try {
+            setSaving(true);
+            const result = await userService.updateMyPicture(file);
+            setUserData(result.user);
+            setError(null);
+            return result;
+        } catch (err: any) {
+            setError('Échec de la mise à jour de la photo. Veuillez réessayer.');
+            console.error('Erreur lors de la mise à jour de la photo:', err);
+            throw err;
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handleCancel = () => {
         setIsEditing(false);
     };
@@ -81,7 +109,7 @@ const MyProfilePage: React.FC = () => {
         );
     }
 
-    if (error && !profile) {
+    if (error && !profile && !userData) {
         return (
             <>
                 <Header />
@@ -92,13 +120,13 @@ const MyProfilePage: React.FC = () => {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2">Aucun profil trouvé</h2>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-2">Erreur</h2>
                         <p className="text-gray-600 mb-6">{error}</p>
                         <button
-                            onClick={() => navigate('/create-profile')}
+                            onClick={() => window.location.reload()}
                             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                         >
-                            Créer un profil
+                            Réessayer
                         </button>
                     </div>
                 </div>
@@ -116,6 +144,14 @@ const MyProfilePage: React.FC = () => {
         socialLinks: profile?.socialLinks || []
     };
 
+    const userDetails = userData ? {
+        firstname: userData.firstname,
+        lastname: userData.lastname,
+        email: userData.email,
+        phone: userData.phone,
+        picture: userData.picture
+    } : null;
+
     return (
         <>
             <Header />
@@ -125,7 +161,7 @@ const MyProfilePage: React.FC = () => {
                         <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
                             <h1 className="text-2xl font-bold text-gray-800">Mon Profil</h1>
                             <p className="text-gray-600 mt-1">
-                                {isEditing ? 'Modifiez vos informations professionnelles' : 'Consultez vos informations professionnelles'}
+                                {isEditing ? 'Modifiez vos informations professionnelles' : 'Consultez vos informations personnelles et professionnelles'}
                             </p>
                         </div>
 
@@ -139,7 +175,10 @@ const MyProfilePage: React.FC = () => {
                             {!isEditing ? (
                                 <ProfileView
                                     profile={initialFormData}
+                                    userDetails={userDetails}
                                     onEdit={() => setIsEditing(true)}
+                                    onUpdatePicture={handleUpdatePicture}
+                                    saving={saving}
                                 />
                             ) : (
                                 <EditProfileForm

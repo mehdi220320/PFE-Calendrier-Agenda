@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import {
     User, Briefcase, FileText, Globe, Link as LinkIcon,
-    Layers, Award, Github, Twitter, Linkedin, Edit
+    Layers, Award, Github, Twitter, Linkedin, Edit, Camera, Mail, Phone, MapPin
 } from 'lucide-react';
 
 interface ProfileViewProps {
@@ -14,10 +14,28 @@ interface ProfileViewProps {
         languages: string[];
         socialLinks: string[];
     };
+    userDetails: {
+        firstname: string;
+        lastname: string;
+        email: string;
+        phone: string | null;
+        picture: string | null;
+    } | null;
     onEdit: () => void;
+    onUpdatePicture: (file: File) => Promise<void>;
+    saving: boolean;
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ profile, onEdit }) => {
+const ProfileView: React.FC<ProfileViewProps> = ({
+                                                     profile,
+                                                     userDetails,
+                                                     onEdit,
+                                                     onUpdatePicture,
+                                                     saving
+                                                 }) => {
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const getSocialIcon = (url: string) => {
         if (url.includes('linkedin')) return <Linkedin className="w-4 h-4" />;
         if (url.includes('github')) return <Github className="w-4 h-4" />;
@@ -25,17 +43,109 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onEdit }) => {
         return <LinkIcon className="w-4 h-4" />;
     };
 
+    const handlePictureChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('La taille de l\'image ne doit pas dépasser 5MB');
+            return;
+        }
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('Seules les images sont acceptées');
+            return;
+        }
+
+        try {
+            setUploading(true);
+            await onUpdatePicture(file);
+        } catch (error) {
+            console.error('Error uploading picture:', error);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const triggerFileInput = () => {
+        fileInputRef.current?.click();
+    };
+
     return (
         <div className="space-y-6">
-            {/* En-tête avec bouton d'édition */}
-            <div className="flex justify-end">
-                <button
-                    onClick={onEdit}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                    <Edit className="w-4 h-4" />
-                    Modifier le profil
-                </button>
+            {/* Hidden file input */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handlePictureChange}
+                accept="image/*"
+                className="hidden"
+            />
+
+            {/* En-tête avec photo et informations utilisateur */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6">
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                    {/* Photo de profil avec upload */}
+                    <div className="relative group">
+                        <div className="h-24 w-24 rounded-full overflow-hidden bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
+                            {userDetails?.picture ? (
+                                <img
+                                    src={userDetails.picture}
+                                    alt={`${userDetails.firstname} ${userDetails.lastname}`}
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <span className="text-white text-3xl font-bold">
+                                    {userDetails?.firstname?.charAt(0)}{userDetails?.lastname?.charAt(0)}
+                                </span>
+                            )}
+                        </div>
+                        <button
+                            onClick={triggerFileInput}
+                            disabled={uploading || saving}
+                            className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                            title="Changer la photo de profil"
+                        >
+                            {uploading ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            ) : (
+                                <Camera className="w-4 h-4" />
+                            )}
+                        </button>
+                    </div>
+
+                    {/* Informations utilisateur */}
+                    <div className="flex-1 text-center md:text-left">
+                        <h2 className="text-2xl font-bold text-gray-800">
+                            {userDetails?.firstname} {userDetails?.lastname}
+                        </h2>
+                        <div className="mt-2 space-y-1">
+                            <div className="flex items-center justify-center md:justify-start gap-2 text-gray-600">
+                                <Mail className="w-4 h-4" />
+                                <span>{userDetails?.email}</span>
+                            </div>
+                            {userDetails?.phone && (
+                                <div className="flex items-center justify-center md:justify-start gap-2 text-gray-600">
+                                    <Phone className="w-4 h-4" />
+                                    <span>{userDetails.phone}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Bouton d'édition */}
+                    <div>
+                        <button
+                            onClick={onEdit}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <Edit className="w-4 h-4" />
+                            Modifier le profil
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* Titre professionnel */}
@@ -102,8 +212,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onEdit }) => {
                                 key={index}
                                 className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
                             >
-                {comp}
-              </span>
+                                {comp}
+                            </span>
                         ))
                     ) : (
                         <p className="text-gray-500">Aucune compétence ajoutée</p>
@@ -126,8 +236,8 @@ const ProfileView: React.FC<ProfileViewProps> = ({ profile, onEdit }) => {
                                 key={index}
                                 className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"
                             >
-                {lang}
-              </span>
+                                {lang}
+                            </span>
                         ))
                     ) : (
                         <p className="text-gray-500">Aucune langue ajoutée</p>

@@ -60,9 +60,12 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                 URL.revokeObjectURL(picturePreview);
             }
             setSelectedPicture(null);
-            setPicturePreview(null);
+            // Don't reset picturePreview on close if it's from user data
+            if (!expertUserData?.picture) {
+                setPicturePreview(null);
+            }
         }
-    }, [show, picturePreview]);
+    }, [show, picturePreview, expertUserData?.picture]);
 
     const fetchCategories = async () => {
         try {
@@ -393,12 +396,13 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                             </div>
                         ) : profile ? (
                             <div className="space-y-4">
-                                {/* Picture Upload Section */}
-                                {isEditing && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Photo de profil
-                                        </label>
+                                {/* Picture Section - Always visible in view mode */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Photo de profil
+                                    </label>
+                                    {isEditing ? (
+                                        // Edit mode - with upload
                                         <div className="flex items-center gap-4">
                                             <div className="flex-shrink-0">
                                                 {picturePreview ? (
@@ -427,8 +431,41 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                                                 </p>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    ) : (
+                                        // View mode - display picture
+                                        <div className="flex items-center gap-4">
+                                            <div className="flex-shrink-0">
+                                                {picturePreview ? (
+                                                    <img
+                                                        src={picturePreview}
+                                                        alt={`${expertUserData?.firstname || 'Expert'} ${expertUserData?.lastname || ''}`}
+                                                        className="h-20 w-20 rounded-full object-cover border-2 border-indigo-200"
+                                                    />
+                                                ) : (
+                                                    <div className="h-20 w-20 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
+                                                        <span className="text-white font-medium text-xl">
+                                                            {expertUserData?.firstname?.charAt(0) || ''}
+                                                            {expertUserData?.lastname?.charAt(0) || ''}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div>
+                                                <h4 className="text-lg font-semibold text-gray-900">
+                                                    {expertUserData?.firstname} {expertUserData?.lastname}
+                                                </h4>
+                                                <p className="text-sm text-gray-500">
+                                                    {expertUserData?.email}
+                                                </p>
+                                                {expertUserData?.phone && (
+                                                    <p className="text-sm text-gray-500">
+                                                        {expertUserData.phone}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -470,9 +507,15 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                                             )}
                                         </>
                                     ) : (
-                                        <p className="px-3 py-2 bg-gray-50 rounded-lg text-gray-700">
-                                            {profile.category || 'Non spécifié'}
-                                        </p>
+                                        <div className="px-3 py-2 bg-gray-50 rounded-lg">
+                                            {profile.category ? (
+                                                <span className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
+                                                    {profile.category}
+                                                </span>
+                                            ) : (
+                                                <p className="text-gray-500 text-sm">Non spécifié</p>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
 
@@ -490,9 +533,13 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         />
                                     ) : (
-                                        <p className="px-3 py-2 bg-gray-50 rounded-lg text-gray-700">
-                                            {profile.headline || 'Non spécifié'}
-                                        </p>
+                                        <div className="px-3 py-2 bg-gray-50 rounded-lg">
+                                            {profile.headline ? (
+                                                <p className="text-gray-700 font-medium">{profile.headline}</p>
+                                            ) : (
+                                                <p className="text-gray-500 text-sm">Non spécifié</p>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
 
@@ -510,9 +557,13 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         />
                                     ) : (
-                                        <p className="px-3 py-2 bg-gray-50 rounded-lg text-gray-700 whitespace-pre-wrap">
-                                            {profile.bio || 'Non spécifié'}
-                                        </p>
+                                        <div className="px-3 py-2 bg-gray-50 rounded-lg">
+                                            {profile.bio ? (
+                                                <p className="text-gray-700 whitespace-pre-wrap">{profile.bio}</p>
+                                            ) : (
+                                                <p className="text-gray-500 text-sm">Non spécifié</p>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
 
@@ -531,9 +582,11 @@ const EditExpertProfile: React.FC<EditExpertProfileProps> = ({
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         />
                                     ) : (
-                                        <p className="px-3 py-2 bg-gray-50 rounded-lg text-gray-700">
-                                            {profile.experience} ans
-                                        </p>
+                                        <div className="px-3 py-2 bg-gray-50 rounded-lg">
+                                            <p className="text-gray-700">
+                                                {profile.experience} {profile.experience <= 1 ? 'an' : 'ans'} d'expérience
+                                            </p>
+                                        </div>
                                     )}
                                 </div>
 

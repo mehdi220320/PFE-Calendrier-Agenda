@@ -3,7 +3,7 @@ const User = require("../models/User");
 const router = express.Router();
 const nodemailer = require('nodemailer');
 require('dotenv').config();
-const { adminAuthorization,googleAuth } = require('../middleware/authMiddleware');
+const { adminAuthorization,googleAuth,authentication } = require('../middleware/authMiddleware');
 const multer = require('multer');
 const streamifier =require('streamifier');
 const cloudinary = require('cloudinary').v2;
@@ -86,7 +86,35 @@ router.patch('/picture/:id',adminAuthorization,upload.single('picture'),async(re
         res.status(500).json({message:e.message})
     }
 })
+router.patch('/mypicture',authentication,upload.single('picture'),async(req,res)=>{
+    try {
+        const id=req.user.userId;
+        let user=await User.findByPk(id);
+        let photoUrl = null;
 
+        if (req.file) {
+            const result = await uploadToCloudinary(req.file.buffer);
+            photoUrl = result.secure_url;
+        }else{
+            res.status(401).json({error:"picture not found"});
+        }
+        user.picture=photoUrl;
+        await user.save();
+        res.status(200).json({message:"picture updated successfuly",user:user})
+    }catch (e) {
+        res.status(500).json({message:e.message})
+    }
+})
+router.get('/myData',authentication,async(req,res)=>{
+    try {
+        const userId=req.user.userId;
+        const user=await User.findByPk(userId);
+        if(!user) res.status(404).send({error:"user not found"});
+        res.status(200).json(user);
+    }catch (e) {
+        res.status(500).json({error:e.message})
+    }
+})
 function generatePassword(length = 12) {
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
     let password = "";

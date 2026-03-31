@@ -20,8 +20,6 @@ api.interceptors.request.use((config) => {
 });
 
 export const meetingService = {
-
-
     createMeeting: async (meetingData: CreateMeetingData): Promise<MeetingResponse> => {
         try {
             const response = await api.post<MeetingResponse>('/add', meetingData);
