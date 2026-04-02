@@ -8,6 +8,7 @@ import { authService } from "./services/authService";
 import MyMeetingView from "./pages/meeting/MyMeetingView.tsx";
 import Calendar from "./pages/calendar/Calendar.tsx";
 import JitsiRoom from "./pages/meeting/JitsiRoom.tsx";
+import Messenger from "./pages/messenger/Messenger.tsx";
 
 const LoadingSpinner = () => (
     <div className="fixed inset-0 flex items-center justify-center bg-white">
@@ -55,7 +56,14 @@ function App() {
         <Router>
             <Routes>
                 <Route path="/login" element={<Login />} />
-
+                <Route
+                    path="/messenger"
+                    element={
+                        <ProtectedRoute>
+                            <Messenger />
+                        </ProtectedRoute>
+                    }
+                />
                 <Route
                     path="/accueil"
                     element={

@@ -109,10 +109,7 @@ api.interceptors.response.use(
 );
 
 export const UserServices = {
-    getExperts: async (): Promise<User[]> => {
-        const response = await api.get('/experts');
-        return response.data.experts;
-    },
+
     getExpertById:async(id: string): Promise<User> => {
     const response = await api.get('/expert/'+id);
     return response.data.expert;

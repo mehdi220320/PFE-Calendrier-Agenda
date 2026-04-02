@@ -12,11 +12,7 @@ function Header() {
 
     const getUserId = () => {
         try {
-            const user = localStorage.getItem('user');
-            if (user) {
-                const userData = JSON.parse(user);
-                return userData.id || userData.userId;
-            }
+            return localStorage.getItem('user');
         } catch (error) {
             console.error('Error getting userId:', error);
         }

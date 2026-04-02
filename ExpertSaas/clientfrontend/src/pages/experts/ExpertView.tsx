@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"; // Add this import
 import type { User } from "../../models/User";
 import { UserServices } from '../../services/UserServices';
 import { expertProfilService } from '../../services/expertProfileService.tsx';
@@ -9,6 +10,7 @@ import BookingExpertMeet from "./BookingExpertMeet";
 
 function ExpertView() {
     const expertId = useParams().id;
+    const navigate = useNavigate(); // Add this
     const [expert, setExpert] = useState<User | null>(null);
     const [expertProfile, setExpertProfile] = useState<ExpertProfil | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -85,6 +87,11 @@ function ExpertView() {
         );
 
         return stats;
+    };
+
+    // Fonction pour naviguer vers la discussion
+    const goToDiscussion = () => {
+        navigate(`/messenger?expertId=${expertId}`);
     };
 
     if (loading) {
@@ -209,6 +216,17 @@ function ExpertView() {
                                         </div>
 
                                         <div className="flex items-center gap-3">
+                                            {/* NEW BUTTON - Discussion */}
+                                            <button
+                                                onClick={goToDiscussion}
+                                                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 font-medium text-sm"
+                                            >
+                                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                                </svg>
+                                                Discussion
+                                            </button>
+
                                             <span className="inline-flex items-center px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
                                                 <svg className="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
                                                     <path fillRule="evenodd" d="M10 2c-1.716 0-3.408.106-5.07.31C3.806 2.45 3 3.414 3 4.517V17.25a.75.75 0 001.075.676L10 15.082l5.925 2.844A.75.75 0 0017 17.25V4.517c0-1.103-.806-2.068-1.93-2.207A41.403 41.403 0 0010 2z" clipRule="evenodd" />

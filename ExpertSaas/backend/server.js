@@ -2,12 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const sequelize = require('./config/db');
-const authRouter = require('./auth/authentification');
-const calandarRouter = require('./agenda/CalendarRoute');
-const userRouter = require('./users/userroutes');
-const meetingRouter = require('./meeting/MeetingRoutes');
-const notificationRouter = require('./notification/NotificationRoutes');
-const expertProfileroutes = require('./expertProfile/ExpertProfileRoutes');
+const registerRoutes = require('./routes');
 const User = require('./models/User.js');
 const { initSocket } = require("./socket");
 const http = require("http");
@@ -25,12 +20,8 @@ const server = http.createServer(app);
 
 const io = initSocket(server);
 
-app.use('/api/auth', authRouter);
-app.use('/api/calendar', calandarRouter);
-app.use('/api/users', userRouter);
-app.use('/api/meet', meetingRouter);
-app.use('/api/notifications', notificationRouter);
-app.use('/api/expertProfile', expertProfileroutes);
+registerRoutes(app);
+
 
 sequelize.sync({ alter: true })
     .then(() => console.log('Database synced successfully'))
