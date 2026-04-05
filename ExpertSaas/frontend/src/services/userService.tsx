@@ -43,5 +43,14 @@ export const userService = {
             console.error(e);
             throw e;
         }
+    },
+    getUserById: async ( id:string):Promise<User>=>{
+        try {
+            const response=await api.get("/user/"+id)
+            return response.data;
+        }catch (e) {
+            console.error(e);
+            throw e;
+        }
     }
 };

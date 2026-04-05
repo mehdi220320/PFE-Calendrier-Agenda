@@ -110,6 +110,7 @@ router.get('/myData',authentication,async(req,res)=>{
         const userId=req.user.userId;
         const user=await User.findByPk(userId);
         if(!user) res.status(404).send({error:"user not found"});
+        delete user.password;
         res.status(200).json(user);
     }catch (e) {
         res.status(500).json({error:e.message})
@@ -363,8 +364,11 @@ router.get('/all',adminAuthorization,async (req,res)=>{
 
 router.get('/experts',googleAuth,async(req,res)=>{
     try {
-        const users=await User.findAll({where: {role: "expert"}});
-        res.send({experts:users})
+        const users = await User.findAll({
+            where: { role: "expert" },
+            attributes: { exclude: ["password"] }
+        });
+        res.send({ experts: users });
     }catch (e) {
         res.status(500).send({message:e.message});
     }
@@ -377,9 +381,20 @@ router.get('/expert/:id',googleAuth,async(req,res)=>{
             id:id,role:"expert"
             }})
         if(!expert) res.status(501).send({message:"Expert not found"});
+        delete expert.password;
         res.status(200).send({expert:expert})
     }catch (e){
         res.status(500).send({message:e.message});
+    }
+})
+
+router.get('/user/:id',authentication,async(req,res)=>{
+    try {
+        const user=await User.findByPk(req.params.id);
+        delete user.password;
+        res.send({user:user})
+    }catch (e) {
+        res.status(500).send({error:e.message})
     }
 })
 

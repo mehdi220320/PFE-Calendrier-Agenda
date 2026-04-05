@@ -1,4 +1,3 @@
-// components/Discussion.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import messengerService, { type Conversation, type Message } from '../../services/messengerService.tsx';
 import type { User } from '../../models/User';
@@ -6,24 +5,33 @@ import MessageInput from './MessageInput';
 
 interface DiscussionProps {
     conversation: Conversation | null;
-    expert: User | null;
+    client: User | null;
 }
 
-const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
+const Discussion: React.FC<DiscussionProps> = ({ conversation, client }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(false);
     const [sending, setSending] = useState(false);
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messageIdsRef = useRef<Set<string>>(new Set());
 
-    // Get current user ID from localStorage
-    const currentUserId = localStorage.getItem('user'); // This is a string ID
-
     // Helper function to get user initials
     const getUserInitials = (firstname?: string, lastname?: string) => {
-        if (!firstname && !lastname) return "EX";
+        if (!firstname && !lastname) return "CL";
         return `${firstname?.charAt(0) || ''}${lastname?.charAt(0) || ''}`.toUpperCase();
     };
+
+    useEffect(() => {
+        const user = localStorage.getItem('user');
+        if (user) {
+            try {
+                setCurrentUserId(user);
+            } catch (error) {
+                console.error('Error parsing user data:', error);
+            }
+        }
+    }, []);
 
     useEffect(() => {
         if (conversation) {
@@ -95,12 +103,7 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Check if message is from current user
-    const isOwnMessage = (message: Message) => {
-        return message.sender === currentUserId;
-    };
-
-    if (!conversation || !expert) {
+    if (!conversation || !client) {
         return (
             <div className="h-full flex items-center justify-center bg-gray-50">
                 <div className="text-center">
@@ -108,7 +111,7 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                     <h3 className="mt-2 text-sm font-medium text-gray-900">No conversation selected</h3>
-                    <p className="mt-1 text-sm text-gray-500">Select a conversation from the list or start a new chat with an expert</p>
+                    <p className="mt-1 text-sm text-gray-500">Select a conversation from the list to start chatting</p>
                 </div>
             </div>
         );
@@ -119,22 +122,22 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
             {/* Conversation Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
                 <div className="flex items-center space-x-3">
-                    {expert.picture ? (
+                    {client.picture ? (
                         <img
-                            src={expert.picture}
-                            alt={`${expert.firstname} ${expert.lastname}`}
+                            src={client.picture}
+                            alt={`${client.firstname} ${client.lastname}`}
                             className="w-10 h-10 rounded-full object-cover"
                         />
                     ) : (
                         <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-400 to-purple-400 flex items-center justify-center text-white font-semibold text-lg">
-                            {getUserInitials(expert.firstname, expert.lastname)}
+                            {getUserInitials(client.firstname, client.lastname)}
                         </div>
                     )}
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900">
-                            {expert.firstname} {expert.lastname}
+                            {client.firstname} {client.lastname}
                         </h3>
-                        <p className="text-sm text-gray-500">{expert.email}</p>
+                        <p className="text-sm text-gray-500">{client.email}</p>
                     </div>
                 </div>
             </div>
@@ -155,25 +158,25 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
                 ) : (
                     <div className="space-y-4">
                         {messages.map((message) => {
-                            const ownMessage = isOwnMessage(message);
+                            // Check if the message is from the current user (expert)
+                            const isOwnMessage = currentUserId === message.sender;
                             return (
                                 <div
                                     key={message.id}
-                                    className={`flex ${ownMessage ? 'justify-end' : 'justify-start'}`}
+                                    className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                                 >
-                                    <div className={`max-w-[70%] ${ownMessage ? 'order-2' : 'order-1'}`}>
+                                    <div className={`max-w-[70%] ${isOwnMessage ? 'order-2' : 'order-1'}`}>
                                         <div
-                                            className={`rounded-2xl px-4 py-2 shadow-sm ${
-                                                ownMessage
-                                                    ? 'bg-blue-500 text-white rounded-br-sm'
-                                                    : 'bg-white text-gray-900 border border-gray-200 rounded-bl-sm'
+                                            className={`rounded-lg px-4 py-2 ${
+                                                isOwnMessage
+                                                    ? 'bg-blue-600 text-white'
+                                                    : 'bg-white text-gray-900 border border-gray-200'
                                             }`}
                                         >
-                                            <p className="text-sm break-words leading-relaxed">{message.message}</p>
+                                            <p className="text-sm break-words">{message.message}</p>
                                         </div>
-                                        <p className={`text-xs text-gray-500 mt-1 ${ownMessage ? 'text-right' : 'text-left'}`}>
+                                        <p className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
                                             {formatTime(message.createdAt)}
-                                            {ownMessage && ' ✓✓'}
                                         </p>
                                     </div>
                                 </div>

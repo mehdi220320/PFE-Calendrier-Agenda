@@ -5,7 +5,8 @@ const Conversation =require('./Conversation')
 const Message=require('./Message')
 const { getIO } = require("../socket");
 const io = getIO();
-
+require('../models/Associations');
+const User=require('../models/User');
 router.post('/create-conversation/expert/:clientId',authentication,async(req,res)=>{
     try {
         const clientId=req.params.clientId;
@@ -95,7 +96,12 @@ router.get('/conversations/client',googleAuth,async(req,res)=>{
 router.get('/conversations/expert',authentication,async(req,res)=>{
     try {
         const id=req.user.userId;
-        const conversations=await Conversation.findAll({where:{expert:id}});
+        const conversations=await Conversation.findAll({where:{expert:id},
+            include: [{
+                model: User,
+                as: 'clientData',
+                attributes: ['id', 'firstname','lastname', 'email', 'picture']
+            }]});
         res.status(200).send({conversations});
     }catch (e) {
         res.status(404).json({error: e.message});

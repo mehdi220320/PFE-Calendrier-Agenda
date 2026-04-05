@@ -12,6 +12,7 @@ import AvailabilityPage from "./pages/calendar/AvailabilityPage.tsx";
 import MyMeetingView from "./pages/meeting/MyMeetingView.tsx";
 import JitsiRoom from "./pages/meeting/JitsiRoom.tsx";
 import MyProfilePage from "./pages/myProfile/MyProfilePage.tsx";
+import Messenger from "./pages/messenger/Messenger.tsx";
 
 const Users = lazy(() => import('./admin/pages/users/Users.tsx'));
 const Meetings = lazy(() => import('./admin/pages/Meetings.tsx'));
@@ -57,7 +58,14 @@ function App() {
                         </ProtectedRoute>
                     }
                 />
-
+                <Route
+                    path="/messenger"
+                    element={
+                        <ProtectedRoute>
+                            <Messenger />
+                        </ProtectedRoute>
+                    }
+                />
                 <Route
                     path="/admin/users"
                     element={
