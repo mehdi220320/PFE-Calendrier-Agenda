@@ -111,7 +111,11 @@ api.interceptors.response.use(
 export const UserServices = {
 
     getExpertById:async(id: string): Promise<User> => {
-    const response = await api.get('/expert/'+id);
-    return response.data.expert;
+        const response = await api.get('/expert/'+id);
+        return response.data.expert;
+    },
+    expertCount:async():Promise<{count:number}>=>{
+        const response = await api.get('/expertCount');
+        return response.data;
     }
 }

@@ -3,7 +3,6 @@ import type {
     CreateMeetingData,
     Meeting,
     MeetingResponse,
-    MeetingsResponse,
 } from "../models/Meeting";
 
 const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -20,6 +19,7 @@ api.interceptors.request.use(
         if (tokensString) {
             try {
                 const tokens = JSON.parse(tokensString);
+                // tokens object has access_token and expiry_date
                 if (tokens.access_token) {
                     config.headers.Authorization = `Bearer ${tokens.access_token}`;
                 }
@@ -104,16 +104,6 @@ api.interceptors.response.use(
 );
 
 export const meetingService = {
-    getAllMeetings: async (): Promise<MeetingsResponse> => {
-        try {
-            const response = await api.get<MeetingsResponse>('/all');
-            return response.data;
-        } catch (error) {
-            console.error('Error fetching all meetings:', error);
-            throw error;
-        }
-    },
-
     createMeeting: async (meetingData: CreateMeetingData): Promise<MeetingResponse> => {
         try {
             const response = await api.post<MeetingResponse>('/add', meetingData);
@@ -123,12 +113,14 @@ export const meetingService = {
             throw error;
         }
     },
-    myMeetings:async(): Promise<Meeting[]> => {
+    myMeetings: async (number?: number): Promise<Meeting[]> => {
         try {
-            const response =await api.get<Meeting[]>('/client');
-            return response.data.meetings
-        }catch (error) {
-            console.error('Error creating meeting:', error);
+            const response = await api.get('/client', {
+                params: number != null ? { number } : {}
+            });
+            return response.data.meetings;
+        } catch (error) {
+            console.error('Error fetching meetings:', error);
             throw error;
         }
     },
@@ -147,6 +139,24 @@ export const meetingService = {
             return response.data;
         } catch (error) {
             console.error('Error fetching meeting by room:', error);
+            throw error;
+        }
+    },
+    meetingsCount:async():Promise<{ count:number }>=>{
+        try {
+            const response = await api.get(`/meetCount`);
+            return response.data;
+        }catch (error) {
+            console.error('Error fetching meetings count:', error);
+            throw error;
+        }
+    },
+    nextMeet:async():Promise<Meeting>=>{
+        try {
+            const response = await api.get(`/nextMeet`);
+            return response.data;
+        }catch (error) {
+            console.error('Error fetching meetings count:', error);
             throw error;
         }
     }
