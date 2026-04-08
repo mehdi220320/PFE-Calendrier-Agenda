@@ -1,6 +1,6 @@
-import { useState} from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Briefcase, Calendar, Video, Menu, X } from 'lucide-react';
+import { Briefcase, Calendar, Video, Menu, X, MessageCircle } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
 function Header() {
@@ -8,7 +8,6 @@ function Header() {
     const location = useLocation();
 
     const isActive = (path: string) => location.pathname === path;
-
 
     const getUserId = () => {
         try {
@@ -61,6 +60,18 @@ function Header() {
                             >
                                 <Video className="h-4 w-4" />
                                 <span>Mes Réunions</span>
+                            </Link>
+
+                            <Link
+                                to="/messenger"
+                                className={`flex items-center space-x-2 text-sm font-medium px-3 py-2 rounded-md transition-colors ${
+                                    isActive('/messenger')
+                                        ? 'text-blue-600 bg-blue-100'
+                                        : 'text-gray-600 hover:text-blue-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                <MessageCircle className="h-4 w-4" />
+                                <span>Messagerie</span>
                             </Link>
 
                             <div className="h-6 w-px bg-gray-300 mx-2"></div>

@@ -1,4 +1,4 @@
-// services/messenger.service.ts
+// services/messengerService.tsx
 import axios from 'axios';
 import socketService from './socket.service';
 
@@ -87,6 +87,8 @@ export interface Message {
     sender: string;
     conversation: string;
     message: string;
+    pictures: string[];
+    files: string[];
     createdAt: string;
 }
 
@@ -163,12 +165,35 @@ class MessengerService {
         }
     }
 
-    async sendMessage(conversationId: string, message: string): Promise<Message> {
+    async sendMessage(conversationId: string, message: string, files?: File[]): Promise<Message> {
         try {
-            const response = await api.post(`/addMessage/client/${conversationId}`, { message });
+            const formData = new FormData();
+            formData.append('message', message);
+
+            if (files && files.length > 0) {
+                files.forEach(file => {
+                    formData.append('files', file);
+                });
+            }
+
+            const response = await api.post(`/addMessage/client/${conversationId}`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
             return response.data;
         } catch (error) {
             console.error('Error sending message:', error);
+            throw error;
+        }
+    }
+
+    async getFiles(conversationId: string): Promise<{ pictures: string[], files: string[] }> {
+        try {
+            const response = await api.get(`/files/client/${conversationId}`);
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching files:', error);
             throw error;
         }
     }

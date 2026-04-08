@@ -5,25 +5,11 @@ const nodemailer = require('nodemailer');
 require('dotenv').config();
 const { adminAuthorization,googleAuth,authentication } = require('../middleware/authMiddleware');
 const multer = require('multer');
-const streamifier =require('streamifier');
-const cloudinary = require('cloudinary').v2;
+const uploadToCloudinary= require('../config/cloudinary')
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-const uploadToCloudinary = (fileBuffer) => {
-    return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-            { folder: 'users' }, // optional folder
-            (error, result) => {
-                if (result) resolve(result);
-                else reject(error);
-            }
-        );
-
-        streamifier.createReadStream(fileBuffer).pipe(stream);
-    });
-};
 router.post('/adduser',adminAuthorization, upload.single('picture'),async (req, res) => {
     try {
         const { firstname, lastname, email, phone, role  } = req.body;
@@ -393,6 +379,14 @@ router.get('/user/:id',authentication,async(req,res)=>{
         const user=await User.findByPk(req.params.id);
         delete user.password;
         res.send({user:user})
+    }catch (e) {
+        res.status(500).send({error:e.message})
+    }
+})
+router.get('/expertCount',googleAuth,async(req,res)=>{
+    try{
+        const count=await User.count({where:{role:"expert"},});
+        res.status(200).send({count:count});
     }catch (e) {
         res.status(500).send({error:e.message})
     }

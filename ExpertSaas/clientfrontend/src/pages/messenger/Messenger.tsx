@@ -1,3 +1,4 @@
+// Messenger.tsx
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { UserServices } from '../../services/UserServices.tsx';
@@ -18,12 +19,10 @@ const Messenger: React.FC = () => {
     const [user, setUser] = useState<string | null>(null);
     const [autoStartingChat, setAutoStartingChat] = useState(false);
 
-    // Experts list state
     const [experts, setExperts] = useState<User[]>([]);
     const [loadingExperts, setLoadingExperts] = useState(false);
     const [startingChat, setStartingChat] = useState<string | null>(null);
 
-    // Helper function to get user initials
     const getUserInitials = (firstname?: string, lastname?: string) => {
         if (!firstname && !lastname) return "EX";
         return `${firstname?.charAt(0) || ''}${lastname?.charAt(0) || ''}`.toUpperCase();
@@ -45,14 +44,12 @@ const Messenger: React.FC = () => {
         };
     }, []);
 
-    // Fetch experts when tab is active
     useEffect(() => {
         if (activeTab === 'experts') {
             fetchAllExperts();
         }
     }, [activeTab]);
 
-    // Auto-start chat if expertId is provided in URL
     useEffect(() => {
         if (expertIdFromUrl && user && !autoStartingChat) {
             startChatWithExpert(expertIdFromUrl);
@@ -63,7 +60,6 @@ const Messenger: React.FC = () => {
         try {
             setLoadingExperts(true);
             const response = await expertProfilService.getAllExperts();
-            // Extract User objects from the response
             const expertsList = response.map(item => item.expertUser);
             setExperts(expertsList);
         } catch (err) {
@@ -98,7 +94,7 @@ const Messenger: React.FC = () => {
             setActiveTab('conversations');
         } catch (err) {
             console.error('Error starting chat:', err);
-            alert('Failed to start conversation. Please try again.');
+            alert('Échec du démarrage de la conversation. Veuillez réessayer.');
         } finally {
             setStartingChat(null);
         }
@@ -112,7 +108,7 @@ const Messenger: React.FC = () => {
     if (!user) {
         return (
             <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-                <div className="text-gray-600">Loading...</div>
+                <div className="text-gray-600">Chargement...</div>
             </div>
         );
     }
@@ -124,9 +120,7 @@ const Messenger: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-19">
                 <div className="bg-white rounded-lg shadow-xl overflow-hidden" style={{ height: 'calc(100vh - 120px)' }}>
                     <div className="flex h-full">
-                        {/* Sidebar with Tabs */}
                         <div className="w-96 border-r border-gray-200 bg-white flex flex-col">
-                            {/* Tab Buttons */}
                             <div className="flex border-b border-gray-200">
                                 <button
                                     onClick={() => setActiveTab('conversations')}
@@ -160,7 +154,6 @@ const Messenger: React.FC = () => {
                                 </button>
                             </div>
 
-                            {/* Tab Content */}
                             <div className="flex-1 overflow-hidden">
                                 {activeTab === 'conversations' ? (
                                     <ConversationsList
@@ -170,12 +163,12 @@ const Messenger: React.FC = () => {
                                 ) : (
                                     <div className="h-full overflow-y-auto">
                                         <div className="p-4">
-                                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Available Experts</h2>
+                                            <h2 className="text-lg font-semibold text-gray-900 mb-4">Experts disponibles</h2>
                                             {loadingExperts ? (
-                                                <div className="text-gray-500 text-center py-8">Loading experts...</div>
+                                                <div className="text-gray-500 text-center py-8">Chargement des experts...</div>
                                             ) : experts.length === 0 ? (
                                                 <div className="text-center text-gray-500 py-8">
-                                                    <p>No experts available</p>
+                                                    <p>Aucun expert disponible</p>
                                                 </div>
                                             ) : (
                                                 <div className="space-y-3">
@@ -186,7 +179,6 @@ const Messenger: React.FC = () => {
                                                         >
                                                             <div className="flex items-center justify-between">
                                                                 <div className="flex items-center space-x-3 flex-1">
-                                                                    {/* Profile Picture with initials fallback */}
                                                                     {expert.picture ? (
                                                                         <img
                                                                             src={expert.picture}
@@ -212,7 +204,7 @@ const Messenger: React.FC = () => {
                                                                     onClick={() => handleStartChat(expert)}
                                                                     disabled={startingChat === expert.id}
                                                                     className="ml-4 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                                                                    title="Start chat"
+                                                                    title="Commencer la discussion"
                                                                 >
                                                                     {startingChat === expert.id ? (
                                                                         <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -236,7 +228,6 @@ const Messenger: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Discussion Area */}
                         <div className="flex-1">
                             <Discussion
                                 conversation={selectedConversation}

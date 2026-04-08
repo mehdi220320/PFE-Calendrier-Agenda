@@ -1,3 +1,4 @@
+// Messenger.tsx
 import React, { useEffect, useState } from 'react';
 import Header from '../../Component/Header';
 import ConversationsList from './ConversationsList';
@@ -11,11 +12,11 @@ const Messenger: React.FC = () => {
     const [user, setUser] = useState<string | null>(null);
 
     useEffect(() => {
-        const user = localStorage.getItem('user');
-        if (user) {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
             try {
-                setUser(user);
-                messengerService.initialize(user);
+                setUser(userStr);
+                messengerService.initialize(userStr);
             } catch (error) {
                 console.error('Error parsing user data:', error);
             }
@@ -34,7 +35,7 @@ const Messenger: React.FC = () => {
     if (!user) {
         return (
             <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-                <div className="text-gray-600">Loading...</div>
+                <div className="text-gray-600">Chargement...</div>
             </div>
         );
     }
@@ -43,14 +44,14 @@ const Messenger: React.FC = () => {
         <div className="min-h-screen bg-gray-100">
             <Header />
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 ">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                 <div className="bg-white rounded-lg shadow-xl overflow-hidden" style={{ height: 'calc(100vh - 120px)' }}>
                     <div className="flex h-full">
                         {/* Sidebar */}
                         <div className="w-96 border-r border-gray-200 bg-white flex flex-col">
                             <div className="border-b border-gray-200 px-4 py-3 bg-gray-50">
                                 <h2 className="text-lg font-semibold text-gray-900">Conversations</h2>
-                                <p className="text-sm text-gray-500">Chat with your clients</p>
+                                <p className="text-sm text-gray-500">Discutez avec vos clients</p>
                             </div>
                             <div className="flex-1 overflow-hidden">
                                 <ConversationsList

@@ -23,8 +23,16 @@ const Message = sequelize.define("Message", {
             model:'Conversations',
             key: 'id'
         }
+    },
+    read: { type: DataTypes.BOOLEAN, defaultValue: false },
+    pictures: {
+        type: DataTypes.ARRAY(DataTypes.STRING),
+        allowNull: true
+    },
+    files: {
+        type: DataTypes.ARRAY(DataTypes.STRING),
+        allowNull: true
     }
-
 });
 
 module.exports = Message;

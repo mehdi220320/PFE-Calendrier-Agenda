@@ -6,28 +6,14 @@ const Message=require('./Message')
 const { getIO } = require("../socket");
 const io = getIO();
 require('../models/Associations');
+const multer = require('multer');
+const uploadToCloudinary= require('../config/cloudinary')
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
 const User=require('../models/User');
-router.post('/create-conversation/expert/:clientId',authentication,async(req,res)=>{
-    try {
-        const clientId=req.params.clientId;
-        const conversation= await Conversation.findOne({where :{
-                client:clientId,
-                expert:req.user.userId
-        }})
-        if(conversation){
-            res.status(401).send("Conversation already exist")
-        }
 
-        const newConv=await Conversation.create({client:clientId,expert:req.user.userId})
-
-        io.to(clientId).emit("newConversation", newConv);
-        io.to(req.user.userId).emit("newConversation", newConv);
-
-        res.status(200).send({conversation:newConv,message:"Conversation created successfully"})
-    }catch (e) {
-        res.status(500).json({error: e.message});
-    }
-})
 
 router.post('/create-conversation/client/:expertId',googleAuth,async(req,res)=>{
     try {
@@ -49,7 +35,7 @@ router.post('/create-conversation/client/:expertId',googleAuth,async(req,res)=>{
     }
 })
 
-router.post('/addMessage/expert/:conversationId',authentication,async(req,res)=>{
+router.post('/addMessage/expert/:conversationId',authentication, upload.array('files', 10),async(req,res)=>{
     try {
         const expertId=req.user.userId;
         const {message}=req.body;
@@ -57,7 +43,30 @@ router.post('/addMessage/expert/:conversationId',authentication,async(req,res)=>
         const conversation=await Conversation.findByPk(conversationId)
         if(!expertId) res.status(404).send("Expert not found")
         if(!conversation) res.status(404).send("conversation not found");
-        const newMessage=await Message.create({conversation:conversationId,sender:expertId,message:message})
+        let pictureUrls = [];
+        let fileUrls = [];
+        if (req.files && req.files.length > 0) {
+            const uploadPromises = req.files.map(file =>
+                uploadToCloudinary(file.buffer)
+            );
+            const results = await Promise.all(uploadPromises);
+            results.forEach((result, index) => {
+                const mimeType = req.files[index].mimetype;
+                if (mimeType.startsWith('image/')) {
+                    pictureUrls.push(result.secure_url);
+                } else {
+                    fileUrls.push(result.secure_url);
+                }
+            });
+        }
+        const newMessage = await Message.create({
+            conversation: conversationId,
+            sender: expertId,
+            message: message,
+            read: false,
+            pictures: pictureUrls,
+            files: fileUrls
+        });
         io.to(expertId).emit("newMessage", newMessage);
         io.to(conversation.client).emit("newMessage", newMessage);
 
@@ -67,6 +76,46 @@ router.post('/addMessage/expert/:conversationId',authentication,async(req,res)=>
     }
 })
 
+router.get('/files/expert/:conversationId', authentication, async (req, res) => {
+    try {
+        const conversationId = req.params.conversationId;
+        const conversation = await Conversation.findByPk(conversationId);
+
+        if (!conversation) res.status(404).send("Conversation not found");
+
+        const messages = await Message.findAll({
+            where: { conversation: conversationId }
+        });
+
+        const allPictures = messages.flatMap(msg => msg.pictures || []);
+        const allFiles = messages.flatMap(msg => msg.files || []);
+
+        res.status(200).json({ pictures: allPictures, files: allFiles });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/files/client/:conversationId', googleAuth, async (req, res) => {
+    try {
+        const conversationId = req.params.conversationId;
+        const conversation = await Conversation.findByPk(conversationId);
+
+        if (!conversation) res.status(404).send("Conversation not found");
+
+        const messages = await Message.findAll({
+            where: { conversation: conversationId }
+        });
+
+        const allPictures = messages.flatMap(msg => msg.pictures || []);
+        const allFiles = messages.flatMap(msg => msg.files || []);
+
+        res.status(200).json({ pictures: allPictures, files: allFiles });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.post('/addMessage/client/:conversationId',googleAuth,async(req,res)=>{
     try {
         const clientId=req.user.id;
@@ -75,7 +124,30 @@ router.post('/addMessage/client/:conversationId',googleAuth,async(req,res)=>{
         const conversation=await Conversation.findByPk(conversationId)
         if(!clientId) res.status(404).send("Client not found")
         if(!conversation) res.status(404).send("Conversation not found");
-        const newMessage=await Message.create({message:message,conversation:conversationId,sender:clientId})
+        let pictureUrls = [];
+        let fileUrls = [];
+        if (req.files && req.files.length > 0) {
+            const uploadPromises = req.files.map(file =>
+                uploadToCloudinary(file.buffer)
+            );
+            const results = await Promise.all(uploadPromises);
+            results.forEach((result, index) => {
+                const mimeType = req.files[index].mimetype;
+                if (mimeType.startsWith('image/')) {
+                    pictureUrls.push(result.secure_url);
+                } else {
+                    fileUrls.push(result.secure_url);
+                }
+            });
+        }
+        const newMessage = await Message.create({
+            conversation: conversationId,
+            sender: clientId,
+            message: message,
+            read: false,
+            pictures: pictureUrls,
+            files: fileUrls
+        });
         io.to(conversation.expert).emit("newMessage", newMessage);
         io.to(clientId).emit("newMessage", newMessage);
         res.status(200).json(newMessage)
