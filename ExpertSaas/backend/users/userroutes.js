@@ -60,7 +60,7 @@ router.patch('/picture/:id',adminAuthorization,upload.single('picture'),async(re
         let photoUrl = null;
 
         if (req.file) {
-            const result = await uploadToCloudinary(req.file.buffer);
+            const result = await uploadToCloudinary(req.file.buffer,req.file.originalname);
             photoUrl = result.secure_url;
         }else{
             res.status(401).json({error:"picture not found"});

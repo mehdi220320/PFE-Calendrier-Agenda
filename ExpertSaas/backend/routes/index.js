@@ -6,4 +6,5 @@ module.exports = (app) => {
     app.use('/api/notifications', require('../notification/NotificationRoutes'));
     app.use('/api/expertProfile', require('../expertProfile/ExpertProfileRoutes'));
     app.use('/api/messenger', require('../messenger/MessengerRoutes'));
+    app.use('/api/note', require('../notes/NoteRoutes'));
 };

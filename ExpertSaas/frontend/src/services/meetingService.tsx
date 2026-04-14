@@ -4,6 +4,7 @@ import type {
     Meeting,
     MeetingResponse,
 } from "../models/Meeting.tsx";
+import type {User} from "../models/User.tsx";
 
 const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -34,6 +35,15 @@ export const meetingService = {
         try {
             const response =await api.get<Meeting[]>('/expert');
             return response.data.meetings
+        }catch (error) {
+            console.error('Error creating meeting:', error);
+            throw error;
+        }
+    },
+    myMeetingsAndClients:async(): Promise<{id:string,summary:string,creatorUser:User}[]> => {
+        try {
+            const response =await api.get<Meeting[]>('/myclients');
+            return response.data
         }catch (error) {
             console.error('Error creating meeting:', error);
             throw error;

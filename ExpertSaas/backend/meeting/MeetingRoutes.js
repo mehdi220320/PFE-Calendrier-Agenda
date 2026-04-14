@@ -558,4 +558,28 @@ router.get('/meetCount',googleAuth,async(req,res)=>{
     }
 })
 
+router.get('/myclients',authentication,async(req,res)=>{
+    try {
+        const userId=req.user.userId;
+        const meetings = await Meeting.findAll({
+            where: { expert: userId },
+            order: [["date", "DESC"]],
+            attributes: [
+                "id",
+                "summary"
+            ],
+            include: [
+                {
+                    model: User,
+                    as: "creatorUser",
+                    attributes: ["id", "firstname","lastname","picture","role", "email"]
+                }
+            ]
+        });
+        res.send(meetings)
+    }catch(error){
+        res.status(500).json({message:error.message})
+    }
+})
+
 module.exports = router;

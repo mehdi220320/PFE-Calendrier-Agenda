@@ -475,32 +475,32 @@ function HomePage() {
                 </div>
 
                 {/* Témoignages - Static */}
-                <div className="mb-12">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6">Ce que disent nos clients</h2>
-                    <div className="grid md:grid-cols-2 gap-6">
-                        {testimonials.map((testimonial) => (
-                            <div key={testimonial.id} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                                <div className="flex gap-1 mb-3">
-                                    {[...Array(testimonial.rating)].map((_, i) => (
-                                        <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
-                                    ))}
-                                </div>
-                                <p className="text-gray-700 mb-4">"{testimonial.comment}"</p>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                                        <span className="text-sm font-medium text-indigo-600">
-                                            {testimonial.name.split(' ').map(n => n[0]).join('')}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <p className="font-medium text-gray-900">{testimonial.name}</p>
-                                        <p className="text-xs text-gray-600">{testimonial.role}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                {/*<div className="mb-12">*/}
+                {/*    <h2 className="text-2xl font-bold text-gray-900 mb-6">Ce que disent nos clients</h2>*/}
+                {/*    <div className="grid md:grid-cols-2 gap-6">*/}
+                {/*        {testimonials.map((testimonial) => (*/}
+                {/*            <div key={testimonial.id} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">*/}
+                {/*                <div className="flex gap-1 mb-3">*/}
+                {/*                    {[...Array(testimonial.rating)].map((_, i) => (*/}
+                {/*                        <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />*/}
+                {/*                    ))}*/}
+                {/*                </div>*/}
+                {/*                <p className="text-gray-700 mb-4">"{testimonial.comment}"</p>*/}
+                {/*                <div className="flex items-center gap-3">*/}
+                {/*                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">*/}
+                {/*                        <span className="text-sm font-medium text-indigo-600">*/}
+                {/*                            {testimonial.name.split(' ').map(n => n[0]).join('')}*/}
+                {/*                        </span>*/}
+                {/*                    </div>*/}
+                {/*                    <div>*/}
+                {/*                        <p className="font-medium text-gray-900">{testimonial.name}</p>*/}
+                {/*                        <p className="text-xs text-gray-600">{testimonial.role}</p>*/}
+                {/*                    </div>*/}
+                {/*                </div>*/}
+                {/*            </div>*/}
+                {/*        ))}*/}
+                {/*    </div>*/}
+                {/*</div>*/}
 
                 {/* Types de consultation disponibles - Static as requested */}
                 <div className="mb-12">

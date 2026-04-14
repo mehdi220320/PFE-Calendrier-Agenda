@@ -17,6 +17,8 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, client }) => {
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [showFileViewer, setShowFileViewer] = useState(false);
     const [sharedFiles, setSharedFiles] = useState<{ pictures: string[], files: string[] }>({ pictures: [], files: [] });
+    const [filesLoading, setFilesLoading] = useState(false);
+    const [filesLoaded, setFilesLoaded] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messageIdsRef = useRef<Set<string>>(new Set());
 
@@ -36,10 +38,14 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, client }) => {
         }
     }, []);
 
+    // Reset files state when conversation changes
     useEffect(() => {
+        setSharedFiles({ pictures: [], files: [] });
+        setFilesLoaded(false);
+        setShowFileViewer(false);
+
         if (conversation) {
             fetchMessages();
-            fetchSharedFiles();
         }
 
         const unsubscribe = messengerService.onNewMessage((newMessage) => {
@@ -47,9 +53,9 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, client }) => {
                 if (!messageIdsRef.current.has(newMessage.id)) {
                     messageIdsRef.current.add(newMessage.id);
                     setMessages(prev => [...prev, newMessage]);
-                    // Refresh files if new message has attachments
+                    // Invalidate files cache so next open re-fetches
                     if (newMessage.pictures?.length > 0 || newMessage.files?.length > 0) {
-                        fetchSharedFiles();
+                        setFilesLoaded(false);
                     }
                 }
             }
@@ -67,7 +73,6 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, client }) => {
 
     const fetchMessages = async () => {
         if (!conversation) return;
-
         try {
             setLoading(true);
             const data = await messengerService.getMessages(conversation.id);
@@ -81,20 +86,26 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, client }) => {
         }
     };
 
-    const fetchSharedFiles = async () => {
-        if (!conversation) return;
+    // ✅ Only fetches files when the button is clicked, not on mount
+    const handleOpenFileViewer = async () => {
+        setShowFileViewer(true);
 
-        try {
-            const files = await messengerService.getFiles(conversation.id);
-            setSharedFiles(files);
-        } catch (err) {
-            console.error('Error fetching shared files:', err);
+        if (!filesLoaded && conversation) {
+            try {
+                setFilesLoading(true);
+                const files = await messengerService.getFiles(conversation.id);
+                setSharedFiles(files);
+                setFilesLoaded(true);
+            } catch (err) {
+                console.error('Error fetching shared files:', err);
+            } finally {
+                setFilesLoading(false);
+            }
         }
     };
 
     const handleSendMessage = async (messageText: string, files?: File[]) => {
         if (!conversation) return;
-
         try {
             setSending(true);
             const newMessage = await messengerService.sendMessage(conversation.id, messageText, files);
@@ -117,6 +128,38 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, client }) => {
     const formatTime = (dateString: string) => {
         const date = new Date(dateString);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
+    // ✅ Force download using fetch + blob to bypass Cloudinary's content-disposition
+    const handleDownload = async (url: string, fileName: string) => {
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            console.error('Download failed:', err);
+            // Fallback: open in new tab
+            window.open(url, '_blank');
+        }
+    };
+
+    const getFileIcon = (fileName: string): { icon: string; label: string; color: string } => {
+        const ext = fileName.split('.').pop()?.toLowerCase() || '';
+        if (ext === 'pdf') return { icon: '📄', label: 'PDF', color: 'bg-red-100 text-red-700 border-red-200' };
+        if (['doc', 'docx'].includes(ext)) return { icon: '📝', label: 'Word', color: 'bg-blue-100 text-blue-700 border-blue-200' };
+        if (['xls', 'xlsx'].includes(ext)) return { icon: '📊', label: 'Excel', color: 'bg-green-100 text-green-700 border-green-200' };
+        if (['txt', 'md'].includes(ext)) return { icon: '📃', label: 'Text', color: 'bg-gray-100 text-gray-700 border-gray-200' };
+        if (['zip', 'rar', '7z'].includes(ext)) return { icon: '🗜️', label: 'Archive', color: 'bg-yellow-100 text-yellow-700 border-yellow-200' };
+        if (['ppt', 'pptx'].includes(ext)) return { icon: '📊', label: 'PPT', color: 'bg-orange-100 text-orange-700 border-orange-200' };
+        if (['csv'].includes(ext)) return { icon: '📋', label: 'CSV', color: 'bg-teal-100 text-teal-700 border-teal-200' };
+        return { icon: '📎', label: ext.toUpperCase() || 'FILE', color: 'bg-gray-100 text-gray-700 border-gray-200' };
     };
 
     const renderAttachments = (message: Message) => {
@@ -150,29 +193,25 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, client }) => {
                     <div className="flex flex-wrap gap-2">
                         {message.files.map((file, idx) => {
                             const fileName = file.split('/').pop() || 'file';
-                            const fileExtension = fileName.split('.').pop()?.toLowerCase();
-                            const isPDF = fileExtension === 'pdf';
-                            const isWord = ['doc', 'docx'].includes(fileExtension || '');
-                            const isExcel = ['xls', 'xlsx'].includes(fileExtension || '');
-
-                            let icon = '📎';
-                            if (isPDF) icon = '📄';
-                            if (isWord) icon = '📝';
-                            if (isExcel) icon = '📊';
+                            const { icon, label, color } = getFileIcon(fileName);
 
                             return (
-                                <a
+                                <button
                                     key={idx}
-                                    href={file}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center space-x-2 px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                    onClick={() => handleDownload(file, fileName)}
+                                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] ${color}`}
+                                    title={`Télécharger ${fileName}`}
                                 >
                                     <span className="text-xl">{icon}</span>
-                                    <span className="text-sm text-gray-700 truncate max-w-[150px]">
-                                        {fileName}
-                                    </span>
-                                </a>
+                                    <div className="text-left">
+                                        <p className="text-xs font-semibold uppercase tracking-wide leading-none mb-0.5">{label}</p>
+                                        <p className="text-xs truncate max-w-[120px] leading-none opacity-75">{fileName}</p>
+                                    </div>
+                                    {/* Download arrow */}
+                                    <svg className="w-3.5 h-3.5 opacity-60 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                </button>
                             );
                         })}
                     </div>
@@ -194,8 +233,6 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, client }) => {
             </div>
         );
     }
-
-    const hasAnyFiles = sharedFiles.pictures.length > 0 || sharedFiles.files.length > 0;
 
     return (
         <>
@@ -223,18 +260,17 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, client }) => {
                             </div>
                         </div>
 
-                        {/* Simple Files Button */}
-                        {hasAnyFiles && (
-                            <button
-                                onClick={() => setShowFileViewer(true)}
-                                className="text-gray-500 hover:text-indigo-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
-                                title="Fichiers partagés"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                                </svg>
-                            </button>
-                        )}
+                        {/* ✅ Files button - always visible, loads on click */}
+                        <button
+                            onClick={handleOpenFileViewer}
+                            className="flex items-center gap-2 text-gray-500 hover:text-indigo-600 transition-colors px-3 py-2 hover:bg-indigo-50 rounded-lg border border-transparent hover:border-indigo-200"
+                            title="Fichiers partagés"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                            </svg>
+                            <span className="text-sm font-medium">Fichiers</span>
+                        </button>
                     </div>
                 </div>
 
@@ -295,6 +331,7 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, client }) => {
                 <FileViewer
                     pictures={sharedFiles.pictures}
                     files={sharedFiles.files}
+                    loading={filesLoading}
                     onClose={() => setShowFileViewer(false)}
                 />
             )}

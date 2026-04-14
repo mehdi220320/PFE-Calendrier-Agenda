@@ -30,13 +30,14 @@ function Header() {
 
     const isActive = (path: string) => location.pathname === path;
 
-    // Get user name from localStorage or use default
     const getUserName = () => {
         try {
-            const user = localStorage.getItem('user');
-            if (user) {
-                const userData = JSON.parse(user);
-                return userData.name || userData.email || 'User';
+            const email = localStorage.getItem('email');
+            const lastname = localStorage.getItem('lastname');
+            const firstname = localStorage.getItem('firstname');
+            const name=firstname+" "+lastname
+            if (name || email) {
+                return name || email || 'User';
             }
         } catch (error) {
             console.error('Error getting user name:', error);
@@ -46,10 +47,9 @@ function Header() {
 
     const getUserEmail = () => {
         try {
-            const user = localStorage.getItem('user');
-            if (user) {
-                const userData = JSON.parse(user);
-                return userData.email || 'user@example.com';
+            const email = localStorage.getItem('email');
+            if (email) {
+                return email || 'user@example.com';
             }
         } catch (error) {
             console.error('Error getting user email:', error);

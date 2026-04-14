@@ -47,7 +47,7 @@ router.post('/addMessage/expert/:conversationId',authentication, upload.array('f
         let fileUrls = [];
         if (req.files && req.files.length > 0) {
             const uploadPromises = req.files.map(file =>
-                uploadToCloudinary(file.buffer)
+                uploadToCloudinary(file.buffer,file.originalname)
             );
             const results = await Promise.all(uploadPromises);
             results.forEach((result, index) => {
@@ -81,7 +81,7 @@ router.get('/files/expert/:conversationId', authentication, async (req, res) => 
         const conversationId = req.params.conversationId;
         const conversation = await Conversation.findByPk(conversationId);
 
-        if (!conversation) res.status(404).send("Conversation not found");
+        if (!conversation) return res.status(404).send("Conversation not found");
 
         const messages = await Message.findAll({
             where: { conversation: conversationId }
@@ -90,7 +90,11 @@ router.get('/files/expert/:conversationId', authentication, async (req, res) => 
         const allPictures = messages.flatMap(msg => msg.pictures || []);
         const allFiles = messages.flatMap(msg => msg.files || []);
 
-        res.status(200).json({ pictures: allPictures, files: allFiles });
+        const cleanUrl = (url) => url.replace('/fl_inline/', '/').replace('/fl_inline', '');
+        res.status(200).json({
+            pictures: allPictures.map(cleanUrl),
+            files: allFiles.map(cleanUrl)
+        });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -128,7 +132,7 @@ router.post('/addMessage/client/:conversationId',googleAuth,async(req,res)=>{
         let fileUrls = [];
         if (req.files && req.files.length > 0) {
             const uploadPromises = req.files.map(file =>
-                uploadToCloudinary(file.buffer)
+                uploadToCloudinary(file.buffer,file.originalname)
             );
             const results = await Promise.all(uploadPromises);
             results.forEach((result, index) => {
