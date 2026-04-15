@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Header from '../../Component/Header.tsx';
 import { NoteService } from '../../services/noteService.tsx';
 import { meetingService } from '../../services/meetingService.tsx';
+import NoteForm from './NoteForm.tsx';
 
 const NotesPage = () => {
     const [notes, setNotes] = useState([]);
@@ -205,7 +206,7 @@ const NotesPage = () => {
     const getPreviewText = (description) => {
         if (!description) return '';
         const text = description.replace(/\n/g, ' ');
-        return text.length > 100 ? text.substring(0, 100) + '...' : text;
+        return text.length > 70 ? text.substring(0, 70) + '...' : text;
     };
 
     const filteredNotes = useMemo(() => {
@@ -406,106 +407,127 @@ const NotesPage = () => {
                     {/* Notes Cards Grid */}
                     {paginatedNotes.length > 0 ? (
                         <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                                {paginatedNotes.map((note) => (
-                                    <div
-                                        key={note.id}
-                                        className="bg-white rounded-lg shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group border border-gray-200 hover:border-indigo-200"
-                                        style={{
-                                            background: 'linear-gradient(to bottom, #ffffff, #fafafa)'
-                                        }}
-                                    >
-                                        {/* Sheet-like design with subtle fold effect */}
-                                        <div className="relative">
-                                            {/* Decorative top line like a notebook */}
-                                            <div className="h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+                                {paginatedNotes.map((note, index) => {
+                                    const colors = [
+                                        'from-yellow-100 to-yellow-50 border-yellow-300',
+                                        'from-pink-100 to-pink-50 border-pink-200',
+                                        'from-green-100 to-green-50 border-green-200',
+                                        'from-blue-100 to-blue-50 border-blue-200',
+                                        'from-purple-100 to-purple-50 border-purple-200',
+                                        'from-orange-100 to-orange-50 border-orange-200'
+                                    ];
+                                    const colorIndex = index % colors.length;
+                                    const tapeColors = ['bg-yellow-300', 'bg-pink-300', 'bg-blue-300', 'bg-green-300', 'bg-purple-300', 'bg-orange-300'];
 
-                                            <div className="p-6">
-                                                <div className="flex justify-between items-start mb-3">
-                                                    <div className="flex-1">
-                                                        <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 mb-1">
-                                                            {note.title}
-                                                        </h3>
-                                                        {/* Subtle date indicator */}
-                                                        <div className="flex items-center gap-1 text-xs text-gray-400">
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                            </svg>
-                                                            {getFormattedDate(note.createdAt)}
+                                    return (
+                                        <div
+                                            key={note.id}
+                                            className="relative transform hover:rotate-0 hover:scale-105 transition-all duration-300 cursor-pointer group"
+                                            style={{
+                                                transform: `rotate(${Math.random() * 2 - 1}deg)`,
+                                            }}
+                                        >
+                                            {/* Tape at top of sticky note */}
+                                            <div className={`absolute -top-3 left-1/2 transform -translate-x-1/2 w-16 h-6 ${tapeColors[colorIndex]} opacity-70 rounded-sm shadow-md`}></div>
+
+                                            {/* Sticky Note Card */}
+                                            <div
+                                                className={`bg-gradient-to-br ${colors[colorIndex]} rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border-2`}
+                                                style={{
+                                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08)'
+                                                }}
+                                            >
+                                                <div className="p-5">
+                                                    {/* Push pin effect */}
+                                                    <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-red-400 shadow-md border border-red-500 opacity-60"></div>
+
+                                                    <div className="flex justify-between items-start mb-3">
+                                                        <div className="flex-1 pr-2">
+                                                            <h3 className="text-lg font-bold text-gray-800 line-clamp-2 mb-2">
+                                                                {note.title}
+                                                            </h3>
+                                                            {/* Subtle date indicator */}
+                                                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                </svg>
+                                                                {getFormattedDate(note.createdAt)}
+                                                            </div>
+                                                        </div>
+                                                        {/* Buttons - always visible */}
+                                                        <div className="flex gap-1">
+                                                            <button
+                                                                onClick={() => handleView(note)}
+                                                                className="p-1.5 text-gray-600 hover:text-indigo-600 transition-colors rounded-lg hover:bg-white/50"
+                                                                title="Voir"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                                </svg>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleEdit(note)}
+                                                                className="p-1.5 text-gray-600 hover:text-blue-600 transition-colors rounded-lg hover:bg-white/50"
+                                                                title="Modifier"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                </svg>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(note.id)}
+                                                                className="p-1.5 text-gray-600 hover:text-red-600 transition-colors rounded-lg hover:bg-white/50"
+                                                                title="Supprimer"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                            </button>
                                                         </div>
                                                     </div>
-                                                    <div className="flex gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                                                    {/* Description preview */}
+                                                    <div className="text-gray-700 text-sm mb-4 leading-relaxed">
+                                                        {getPreviewText(note.description)}
+                                                    </div>
+
+                                                    {/* Tags */}
+                                                    <div className="flex flex-wrap gap-2 mb-4">
+                                                        {note.client && (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-white/60 text-gray-700 border border-gray-300 backdrop-blur-sm">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                                                {getClientName(note.client)}
+                                    </span>
+                                                        )}
+                                                        {note.meeting && (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-white/60 text-gray-700 border border-gray-300 backdrop-blur-sm">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                                                {getMeetingSummary(note.meeting)}
+                                    </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Footer with view button */}
+                                                    <div className="pt-3 border-t border-gray-300 border-opacity-50">
                                                         <button
                                                             onClick={() => handleView(note)}
-                                                            className="p-1.5 text-gray-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50"
-                                                            title="Voir"
+                                                            className="w-full text-center text-gray-600 hover:text-gray-800 font-medium text-sm py-1 transition-colors"
                                                         >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                            </svg>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleEdit(note)}
-                                                            className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors rounded-lg hover:bg-blue-50"
-                                                            title="Modifier"
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                            </svg>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleDelete(note.id)}
-                                                            className="p-1.5 text-gray-400 hover:text-red-600 transition-colors rounded-lg hover:bg-red-50"
-                                                            title="Supprimer"
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
+                                                            Lire la note complète →
                                                         </button>
                                                     </div>
-                                                </div>
-
-                                                {/* Description preview with styled text */}
-                                                <div className="text-gray-600 text-sm mb-4 leading-relaxed">
-                                                    {getPreviewText(note.description)}
-                                                </div>
-
-                                                {/* Tags */}
-                                                <div className="flex flex-wrap gap-2 mb-4">
-                                                    {note.client && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-blue-50 text-blue-700 border border-blue-100">
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                            </svg>
-                                                            {getClientName(note.client)}
-                                                        </span>
-                                                    )}
-                                                    {note.meeting && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md bg-purple-50 text-purple-700 border border-purple-100">
-                                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                            </svg>
-                                                            {getMeetingSummary(note.meeting)}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                {/* Footer with view button */}
-                                                <div className="pt-3 border-t border-gray-100">
-                                                    <button
-                                                        onClick={() => handleView(note)}
-                                                        className="w-full text-center text-indigo-600 hover:text-indigo-800 font-medium text-sm py-1 transition-colors"
-                                                    >
-                                                        Lire la note complète →
-                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
-
                             {/* Pagination */}
                             {totalPages > 1 && (
                                 <div className="bg-white rounded-xl shadow-sm px-6 py-4 border border-gray-100">
@@ -604,105 +626,15 @@ const NotesPage = () => {
                                 </button>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="space-y-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Titre *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="title"
-                                        value={formData.title}
-                                        onChange={handleInputChange}
-                                        required
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                                        placeholder="Entrez le titre de la note"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Description *
-                                    </label>
-                                    <textarea
-                                        name="description"
-                                        value={formData.description}
-                                        onChange={handleInputChange}
-                                        required
-                                        rows="8"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm transition-colors"
-                                        placeholder="Entrez la description détaillée de la note&#10;Utilisez - ou * pour les puces&#10;Exemple:&#10;- Premier point important&#10;- Deuxième point important"
-                                    />
-                                    <p className="mt-1 text-xs text-gray-500">
-                                        Astuce: Utilisez &quot;-&quot; ou &quot;*&quot; au début d'une ligne pour créer des puces
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Client
-                                    </label>
-                                    <select
-                                        name="client"
-                                        value={formData.client}
-                                        onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                                    >
-                                        <option value="">Sélectionnez un client (optionnel)</option>
-                                        {getUniqueClients.map(client => (
-                                            <option key={client.id} value={client.id}>
-                                                {client.firstname} {client.lastname}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Réunion
-                                    </label>
-                                    <select
-                                        name="meeting"
-                                        value={formData.meeting}
-                                        onChange={handleInputChange}
-                                        disabled={!formData.client}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        <option value="">Sélectionnez une réunion (optionnel)</option>
-                                        {filteredMeetings.map(meeting => (
-                                            <option key={meeting.id} value={meeting.id}>
-                                                {meeting.summary || 'Sans titre'}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {formData.client && filteredMeetings.length === 0 && (
-                                        <p className="mt-1 text-sm text-yellow-600">
-                                            Aucune réunion trouvée pour ce client
-                                        </p>
-                                    )}
-                                    {!formData.client && (
-                                        <p className="mt-1 text-sm text-gray-500">
-                                            Sélectionnez d'abord un client pour voir ses réunions
-                                        </p>
-                                    )}
-                                </div>
-
-                                <div className="flex justify-end gap-3 pt-4">
-                                    <button
-                                        type="button"
-                                        onClick={handleCloseModal}
-                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                                    >
-                                        Annuler
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
-                                    >
-                                        {editingNote ? 'Mettre à jour' : 'Créer'}
-                                    </button>
-                                </div>
-                            </form>
+                            <NoteForm
+                                formData={formData}
+                                editingNote={editingNote}
+                                filteredMeetings={filteredMeetings}
+                                uniqueClients={getUniqueClients}
+                                onInputChange={handleInputChange}
+                                onSubmit={handleSubmit}
+                                onCancel={handleCloseModal}
+                            />
                         </div>
                     </div>
                 </div>

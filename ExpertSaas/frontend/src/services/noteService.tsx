@@ -1,4 +1,3 @@
-// NoteService.js
 import axios from 'axios';
 
 const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -20,6 +19,16 @@ export const NoteService = {
     getMyNotes: async () => {
         try {
             const response = await api.get('/myNotes');
+            return response.data;
+        } catch (error) {
+            console.error('Erreur lors de la récupération des notes:', error);
+            throw error;
+        }
+    },
+
+    getMyNotesByPage: async (i:number ) => {
+        try {
+            const response = await api.get('/myNotes/'+i);
             return response.data;
         } catch (error) {
             console.error('Erreur lors de la récupération des notes:', error);

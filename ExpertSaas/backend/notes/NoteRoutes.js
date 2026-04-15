@@ -17,6 +17,39 @@ router.get('/myNotes', authentication, async (req, res) => {
     }
 });
 
+router.get('/myNotes/:i', authentication, async (req, res) => {
+    try {
+        const id = req.user.userId;
+        const i = parseInt(req.params.i) || 1;
+
+        const limit = 5;
+        const offset = (i - 1) * limit;
+
+        const total = await Note.count({
+            where: { creator: id }
+        });
+
+        const notes = await Note.findAll({
+            where: { creator: id },
+            order: [['createdAt', 'DESC']],
+            limit,
+            offset,
+        });
+
+        const hasMore = offset + notes.length < total;
+
+        res.json({
+            notes,
+            currentPage: i,
+            totalNotes: total,
+            hasMore
+        });
+
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.post('/add', authentication, async (req, res) => {
     try {
         const id = req.user.userId;
@@ -88,5 +121,6 @@ router.delete('/delete/:id', authentication, async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
+
 
 module.exports = router;
