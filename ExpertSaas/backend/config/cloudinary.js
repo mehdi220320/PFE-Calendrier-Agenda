@@ -1,4 +1,3 @@
-// uploadToCloudinary.js
 const { v2: cloudinary } = require("cloudinary");
 const streamifier = require("streamifier");
 

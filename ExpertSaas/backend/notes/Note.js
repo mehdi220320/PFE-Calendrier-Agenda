@@ -38,6 +38,11 @@ const Note = sequelize.define("Note", {
             model: 'Meetings',
             key: 'id'
         }
+    },
+    alarmAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        index: true
     }
 });
 

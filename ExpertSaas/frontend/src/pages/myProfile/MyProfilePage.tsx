@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { expertProfilService } from '../../services/expertProfileService.tsx';
 import { userService } from '../../services/userService.tsx';
 import type { ExpertProfil } from '../../models/ExpertProfil.tsx';
@@ -9,7 +8,6 @@ import ProfileView from './ProfileView';
 import EditProfileForm from './EditProfileForm';
 
 const MyProfilePage: React.FC = () => {
-    const navigate = useNavigate();
     const [profile, setProfile] = useState<ExpertProfil | null>(null);
     const [userData, setUserData] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
@@ -17,6 +15,7 @@ const MyProfilePage: React.FC = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [saving, setSaving] = useState(false);
     const [categories, setCategories] = useState<{ category: string; nb_of_profiles: number }[]>([]);
+    const [profileNotFound, setProfileNotFound] = useState(false);
 
     useEffect(() => {
         fetchUserAndProfile();
@@ -34,11 +33,14 @@ const MyProfilePage: React.FC = () => {
             try {
                 const data = await expertProfilService.getMyProfile();
                 setProfile(data);
+                setProfileNotFound(false);
             } catch (err: any) {
                 if (err.response?.status === 404) {
-                    setError('Profil non trouvé. Veuillez créer votre profil d\'abord.');
+                    setProfileNotFound(true);
+                    setProfile(null);
                 } else {
                     console.error('Error fetching profile:', err);
+                    setError('Erreur lors du chargement du profil.');
                 }
             }
             setError(null);
@@ -62,12 +64,33 @@ const MyProfilePage: React.FC = () => {
     const handleSave = async (formData: any) => {
         try {
             setSaving(true);
-            const updatedProfile = await expertProfilService.updateMyProfile(formData);
+            let updatedProfile;
+
+            if (profileNotFound) {
+                // IMPORTANT: Add the expertId from userData when creating a new profile
+                if (!userData?.id) {
+                    throw new Error("User ID not found");
+                }
+
+                const profileData = {
+                    ...formData,
+                    expertId: userData.id
+                };
+
+                console.log("Creating profile with data:", profileData); // Debug log
+                updatedProfile = await expertProfilService.addExpertProfile(profileData);
+                setProfileNotFound(false);
+            } else {
+                // Update existing profile
+                updatedProfile = await expertProfilService.updateMyProfile(formData);
+            }
+
             setProfile(updatedProfile);
             setIsEditing(false);
             setError(null);
         } catch (err: any) {
-            setError('Échec de la mise à jour du profil. Veuillez réessayer.');
+            const errorMessage = err.response?.data?.message || err.message || 'Échec de la mise à jour du profil. Veuillez réessayer.';
+            setError(errorMessage);
             console.error('Erreur lors de la mise à jour du profil:', err);
             throw err;
         } finally {
@@ -95,36 +118,42 @@ const MyProfilePage: React.FC = () => {
         setIsEditing(false);
     };
 
+    const handleCreateProfile = () => {
+        setIsEditing(true);
+    };
+
     if (loading) {
         return (
             <>
                 <Header />
-                <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
                     <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                        <p className="mt-4 text-gray-600">Chargement du profil...</p>
+                        <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-full mb-4">
+                            <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600"></div>
+                        </div>
+                        <p className="mt-4 text-slate-600 font-medium">Chargement du profil...</p>
                     </div>
                 </div>
             </>
         );
     }
 
-    if (error && !profile && !userData) {
+    if (error && !profile && !userData && !profileNotFound) {
         return (
             <>
                 <Header />
-                <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full text-center">
+                <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center border border-slate-200">
                         <div className="text-red-600 mb-4">
                             <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                         </div>
-                        <h2 className="text-2xl font-bold text-gray-800 mb-2">Erreur</h2>
-                        <p className="text-gray-600 mb-6">{error}</p>
+                        <h2 className="text-2xl font-bold text-slate-900 mb-2">Erreur</h2>
+                        <p className="text-slate-600 mb-6">{error}</p>
                         <button
                             onClick={() => window.location.reload()}
-                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                            className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
                         >
                             Réessayer
                         </button>
@@ -134,7 +163,7 @@ const MyProfilePage: React.FC = () => {
         );
     }
 
-    const initialFormData = {
+    const initialFormData = profile ? {
         headline: profile?.headline || '',
         bio: profile?.bio || '',
         category: profile?.category || '',
@@ -142,9 +171,18 @@ const MyProfilePage: React.FC = () => {
         competences: profile?.competences || [],
         languages: profile?.languages || [],
         socialLinks: profile?.socialLinks || []
+    } : {
+        headline: '',
+        bio: '',
+        category: '',
+        experience: 0,
+        competences: [],
+        languages: [],
+        socialLinks: []
     };
 
     const userDetails = userData ? {
+        id: userData.id,
         firstname: userData.firstname,
         lastname: userData.lastname,
         email: userData.email,
@@ -155,24 +193,45 @@ const MyProfilePage: React.FC = () => {
     return (
         <>
             <Header />
-            <div className="min-h-screen bg-gray-50 py-8">
+            <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-12">
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-                            <h1 className="text-2xl font-bold text-gray-800">Mon Profil</h1>
-                            <p className="text-gray-600 mt-1">
-                                {isEditing ? 'Modifiez vos informations professionnelles' : 'Consultez vos informations personnelles et professionnelles'}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
+                        <div className="px-8 py-6 border-b border-slate-100 bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50">
+                            <h1 className="text-3xl font-bold text-slate-900">Mon Profil Expert</h1>
+                            <p className="text-slate-600 mt-2">
+                                {isEditing
+                                    ? 'Modifiez vos informations professionnelles'
+                                    : profileNotFound
+                                        ? 'Créez votre profil expert pour commencer'
+                                        : 'Consultez et modifiez votre profil professionnel'}
                             </p>
                         </div>
 
                         {error && (
-                            <div className="mx-6 mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                                {error}
+                            <div className="mx-6 mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-3">
+                                <span className="text-xl">⚠️</span>
+                                <span>{error}</span>
                             </div>
                         )}
 
-                        <div className="p-6">
-                            {!isEditing ? (
+                        <div className="p-8">
+                            {profileNotFound && !isEditing ? (
+                                <div className="text-center py-12">
+                                    <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-full mb-4">
+                                        <span className="text-2xl">📋</span>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-slate-900 mb-2">Aucun profil trouvé</h3>
+                                    <p className="text-slate-600 mb-6 max-w-md mx-auto">
+                                        Vous n'avez pas encore créé votre profil expert. Commencez maintenant pour pouvoir accepter des réservations!
+                                    </p>
+                                    <button
+                                        onClick={handleCreateProfile}
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-lg transition-colors font-semibold"
+                                    >
+                                        Créer mon profil expert
+                                    </button>
+                                </div>
+                            ) : !isEditing ? (
                                 <ProfileView
                                     profile={initialFormData}
                                     userDetails={userDetails}
@@ -187,6 +246,9 @@ const MyProfilePage: React.FC = () => {
                                     onSave={handleSave}
                                     onCancel={handleCancel}
                                     saving={saving}
+                                    userDetails={userDetails}
+                                    onUpdatePicture={handleUpdatePicture}
+                                    isCreating={profileNotFound}
                                 />
                             )}
                         </div>

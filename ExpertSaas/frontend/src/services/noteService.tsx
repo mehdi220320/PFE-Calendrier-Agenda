@@ -74,6 +74,7 @@ export const NoteModel = {
     creator: '',
     client: null,
     meeting: null,
+    alarmAt: null,
     createdAt: '',
     updatedAt: ''
 };

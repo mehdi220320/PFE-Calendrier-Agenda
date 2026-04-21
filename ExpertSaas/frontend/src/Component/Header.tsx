@@ -8,14 +8,21 @@ function Header() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [meetings, setMeetings] = useState([]);
+    const [userPicture, setUserPicture] = useState<string | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
 
     useEffect(() => {
         if (isAuthenticated) {
             fetchMeetings();
+            loadUserPicture();
         }
     }, []);
+
+    const loadUserPicture = () => {
+        const picture = localStorage.getItem('picture');
+        setUserPicture(picture);
+    };
 
     const fetchMeetings = async () => {
         try {
@@ -30,6 +37,11 @@ function Header() {
         localStorage.removeItem('token');
         localStorage.removeItem('expert');
         localStorage.removeItem('tokenExpiration');
+        localStorage.removeItem('picture');
+        localStorage.removeItem('dashboard-popup-seen');
+        localStorage.removeItem('firstname')
+        localStorage.removeItem('lastname')
+        localStorage.removeItem('isActive')
         navigate('/login');
     };
 
@@ -96,7 +108,6 @@ function Header() {
     const uniqueClients = getUniqueClients();
 
     const handleNoteCreated = () => {
-        // Optional: refresh notes if needed or show notification
         console.log('Note created successfully');
     };
 
@@ -205,7 +216,6 @@ function Header() {
                                 </span>
                             </Link>
 
-
                             {/* Messenger Button */}
                             <Link
                                 to="/messenger"
@@ -239,8 +249,22 @@ function Header() {
                                         onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
                                         className="flex items-center gap-3 text-sm font-semibold leading-6 text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                                     >
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white">
-                                            <span className="text-sm font-medium">{userInitials}</span>
+                                        {/* Profile Picture or Initials */}
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white overflow-hidden">
+                                            {userPicture && userPicture !== 'null' && userPicture !== '' ? (
+                                                <img
+                                                    src={userPicture}
+                                                    alt={userName}
+                                                    className="w-full h-full object-cover"
+                                                    onError={(e) => {
+                                                        // If image fails to load, show initials instead
+                                                        e.currentTarget.style.display = 'none';
+                                                        e.currentTarget.parentElement!.innerHTML = `<span class="text-sm font-medium">${userInitials}</span>`;
+                                                    }}
+                                                />
+                                            ) : (
+                                                <span className="text-sm font-medium">{userInitials}</span>
+                                            )}
                                         </div>
                                         <span className="flex items-center gap-1">
                                             {userName}
@@ -266,10 +290,27 @@ function Header() {
 
                                             {/* Dropdown panel */}
                                             <div className="absolute right-0 mt-2 w-56 rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-20 overflow-hidden">
-                                                {/* User info header */}
-                                                <div className="px-4 py-3 border-b border-gray-100">
-                                                    <p className="text-sm font-medium text-gray-900">{userName}</p>
-                                                    <p className="text-xs text-gray-500 truncate">{userEmail}</p>
+                                                {/* User info header with picture */}
+                                                <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white overflow-hidden flex-shrink-0">
+                                                        {userPicture && userPicture !== 'null' && userPicture !== '' ? (
+                                                            <img
+                                                                src={userPicture}
+                                                                alt={userName}
+                                                                className="w-full h-full object-cover"
+                                                                onError={(e) => {
+                                                                    e.currentTarget.style.display = 'none';
+                                                                    e.currentTarget.parentElement!.innerHTML = `<span class="text-sm font-medium">${userInitials}</span>`;
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <span className="text-sm font-medium">{userInitials}</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-medium text-gray-900 truncate">{userName}</p>
+                                                        <p className="text-xs text-gray-500 truncate">{userEmail}</p>
+                                                    </div>
                                                 </div>
 
                                                 {/* Menu items */}
@@ -287,6 +328,7 @@ function Header() {
                                                         </svg>
                                                         <span>Mon profil</span>
                                                     </button>
+
                                                     {/* Notes in dropdown */}
                                                     <button
                                                         onClick={() => {
@@ -295,20 +337,21 @@ function Header() {
                                                         }}
                                                         className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors group"
                                                     >
-                                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-4 h-4 text-gray-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                         </svg>
                                                         <span>Mes Notes</span>
                                                     </button>
+
                                                     {/* Reclamation in dropdown */}
                                                     <button
                                                         onClick={() => {
-                                                            navigate('/reclamation');
+                                                            navigate('/reclamations');
                                                             setIsProfileMenuOpen(false);
                                                         }}
                                                         className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors group"
                                                     >
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                         </svg>
                                                         <span>Réclamations</span>
@@ -401,13 +444,25 @@ function Header() {
                                 <div className="flex-1 overflow-y-auto py-6">
                                     {isAuthenticated ? (
                                         <div className="space-y-1 px-4">
-                                            {/* User info section */}
+                                            {/* User info section with picture */}
                                             <div className="flex items-center gap-3 px-3 py-4 mb-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white">
-                                                    <span className="text-sm font-medium">{userInitials}</span>
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white overflow-hidden flex-shrink-0">
+                                                    {userPicture && userPicture !== 'null' && userPicture !== '' ? (
+                                                        <img
+                                                            src={userPicture}
+                                                            alt={userName}
+                                                            className="w-full h-full object-cover"
+                                                            onError={(e) => {
+                                                                e.currentTarget.style.display = 'none';
+                                                                e.currentTarget.parentElement!.innerHTML = `<span class="text-sm font-medium">${userInitials}</span>`;
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <span className="text-sm font-medium">{userInitials}</span>
+                                                    )}
                                                 </div>
-                                                <div className="flex-1">
-                                                    <p className="text-sm font-semibold text-gray-900">{userName}</p>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-semibold text-gray-900 truncate">{userName}</p>
                                                     <p className="text-xs text-gray-500 truncate">{userEmail}</p>
                                                 </div>
                                             </div>

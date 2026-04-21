@@ -11,6 +11,7 @@ interface AuthResponse {
     firstname: string;
     lastname: string;
     userId:string;
+    picture:string;
 }
 
 function Login() {
@@ -67,6 +68,7 @@ function Login() {
             localStorage.setItem('firstname', String(data.firstname));
             localStorage.setItem('lastname', String(data.lastname));
             localStorage.setItem('user', String(data.userId));
+            localStorage.setItem('picture', String(data.picture));
 
             console.log("data"+localStorage.getItem('token'))
 

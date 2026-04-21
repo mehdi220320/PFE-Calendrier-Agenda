@@ -3,6 +3,7 @@ import Header from '../../Component/Header.tsx';
 import { NoteService } from '../../services/noteService.tsx';
 import { meetingService } from '../../services/meetingService.tsx';
 import NoteForm from './NoteForm.tsx';
+import DOMPurify from 'dompurify';
 
 const NotesPage = () => {
     const [notes, setNotes] = useState([]);
@@ -19,7 +20,8 @@ const NotesPage = () => {
         title: '',
         description: '',
         client: '',
-        meeting: ''
+        meeting: '',
+        alarmAt: null
     });
     const [filteredMeetings, setFilteredMeetings] = useState([]);
     const itemsPerPage = 6;
@@ -62,30 +64,55 @@ const NotesPage = () => {
         }
     };
 
-    const handleInputChange = (e) => {
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
             [name]: value,
             ...(name === 'client' && { meeting: '' })
         }));
+
+        if (name === 'client' && value) {
+            const clientMeetings = meetings.filter(meeting =>
+                meeting.creatorUser?.id === value
+            );
+            setFilteredMeetings(clientMeetings);
+        } else if (name === 'client' && !value) {
+            setFilteredMeetings([]);
+        }
+    };
+
+
+    const handleDescriptionChange = (value: string) => {
+        setFormData(prev => ({
+            ...prev,
+            description: value
+        }));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            const submitData = {
+                title: formData.title,
+                description: formData.description,
+                client: formData.client === '' ? null : formData.client,
+                meeting: formData.meeting === '' ? null : formData.meeting,
+                alarmAt: formData.alarmAt
+            };
+
             if (editingNote) {
-                await NoteService.editNote(editingNote.id, formData);
+                await NoteService.editNote(editingNote.id, submitData);
             } else {
-                await NoteService.addNote(formData);
+                await NoteService.addNote(submitData);
             }
             await fetchNotes();
             handleCloseModal();
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Erreur lors de l\'enregistrement de la note');
+            setError(err instanceof Error ? err.message : 'Erreur lors de l\'enregistrement');
         }
     };
-
     const handleView = (note) => {
         setViewingNote(note);
         setShowViewModal(true);
@@ -97,7 +124,8 @@ const NotesPage = () => {
             title: note.title,
             description: note.description,
             client: note.client || '',
-            meeting: note.meeting || ''
+            meeting: note.meeting || '',
+            alarmAt: note.alarmAt || null
         });
         setShowModal(true);
     };
@@ -120,7 +148,8 @@ const NotesPage = () => {
             title: '',
             description: '',
             client: '',
-            meeting: ''
+            meeting: '',
+            alarmAt: null
         });
         setError(null);
     };
@@ -161,51 +190,55 @@ const NotesPage = () => {
         });
     };
 
-    // Function to format description with bullet points and line breaks
-    const formatDescription = (description) => {
-        if (!description) return null;
-
-        // Split by new lines
-        const lines = description.split('\n');
-
-        return lines.map((line, index) => {
-            // Check if line starts with - or * for bullet points
-            if (line.trim().startsWith('-') || line.trim().startsWith('*')) {
-                return (
-                    <div key={index} className="flex items-start gap-2 mb-2">
-                        <span className="text-indigo-500 mt-0.5">•</span>
-                        <span className="text-gray-700 flex-1">{line.trim().substring(1).trim()}</span>
-                    </div>
-                );
-            }
-            // Check if line starts with number for numbered list
-            else if (line.trim().match(/^\d+\./)) {
-                return (
-                    <div key={index} className="flex items-start gap-2 mb-2">
-                        <span className="text-indigo-500 font-medium mt-0.5">{line.trim().split('.')[0]}.</span>
-                        <span className="text-gray-700 flex-1">{line.trim().substring(line.trim().indexOf('.') + 1).trim()}</span>
-                    </div>
-                );
-            }
-            // Empty line
-            else if (line.trim() === '') {
-                return <div key={index} className="h-2"></div>;
-            }
-            // Regular text
-            else {
-                return (
-                    <p key={index} className="text-gray-700 mb-2 leading-relaxed">
-                        {line}
-                    </p>
-                );
-            }
+    const getAlarmDate = (alarmAt) => {
+        if (!alarmAt) return null;
+        const date = new Date(alarmAt);
+        return date.toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
         });
     };
 
-    // Function to get preview text (first 100 characters)
-    const getPreviewText = (description) => {
-        if (!description) return '';
-        const text = description.replace(/\n/g, ' ');
+    const isAlarmUpcoming = (alarmAt) => {
+        if (!alarmAt) return false;
+        const alarmDate = new Date(alarmAt);
+        const now = new Date();
+        return alarmDate > now;
+    };
+
+    // NEW: Render rich text description with HTML support
+    const renderRichText = (htmlContent) => {
+        if (!htmlContent) return <p className="text-gray-400 italic">Aucune description</p>;
+
+        const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
+            ALLOWED_TAGS: [
+                'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike', 'del',
+                'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                'ul', 'ol', 'li', 'blockquote', 'pre', 'code',
+                'span', 'div', 'mark', 'a'
+            ],
+            ALLOWED_ATTR: ['href', 'target', 'class', 'style', 'color'],
+            ALLOW_DATA_ATTR: false
+        });
+
+        return (
+            <div
+                className="rich-text-display"
+                dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+            />
+        );
+    };
+
+    // UPDATED: Get plain text preview from HTML
+    const getPreviewText = (htmlContent) => {
+        if (!htmlContent) return '';
+        // Create temporary div to extract text from HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = htmlContent;
+        const text = tempDiv.textContent || tempDiv.innerText || '';
         return text.length > 70 ? text.substring(0, 70) + '...' : text;
     };
 
@@ -411,7 +444,7 @@ const NotesPage = () => {
                                 {paginatedNotes.map((note, index) => {
                                     const colors = [
                                         'from-yellow-100 to-yellow-50 border-yellow-300',
-                                        'from-pink-100 to-pink-50 border-pink-200',
+                                        'from-pink-100 to-pink-50 border-pink-100',
                                         'from-green-100 to-green-50 border-green-200',
                                         'from-blue-100 to-blue-50 border-blue-200',
                                         'from-purple-100 to-purple-50 border-purple-200',
@@ -454,6 +487,20 @@ const NotesPage = () => {
                                                                 </svg>
                                                                 {getFormattedDate(note.createdAt)}
                                                             </div>
+                                                            {/* Alarm indicator with tooltip */}
+                                                            {note.alarmAt && (
+                                                                <div className="relative group mt-1">
+                                                                    <div className={`flex items-center gap-1 text-xs ${isAlarmUpcoming(note.alarmAt) ? 'text-orange-500' : 'text-gray-400'}`}>
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                                                        </svg>
+                                                                        <span>Rappel</span>
+                                                                    </div>
+                                                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                                                        {getAlarmDate(note.alarmAt)}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         {/* Buttons - always visible */}
                                                         <div className="flex gap-1">
@@ -488,7 +535,7 @@ const NotesPage = () => {
                                                         </div>
                                                     </div>
 
-                                                    {/* Description preview */}
+                                                    {/* Description preview - UPDATED to use getPreviewText */}
                                                     <div className="text-gray-700 text-sm mb-4 leading-relaxed">
                                                         {getPreviewText(note.description)}
                                                     </div>
@@ -607,9 +654,9 @@ const NotesPage = () => {
                 </main>
             </div>
 
-            {/* Modal for Create/Edit Note - Fixed background */}
+            {/* Modal for Create/Edit Note */}
             {showModal && (
-                <div className="fixed inset-0  bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm" onClick={handleCloseModal}>
+                <div className="fixed inset-0 bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm" onClick={handleCloseModal}>
                     <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-6">
@@ -634,13 +681,14 @@ const NotesPage = () => {
                                 onInputChange={handleInputChange}
                                 onSubmit={handleSubmit}
                                 onCancel={handleCloseModal}
+                                onDescriptionChange={handleDescriptionChange}
                             />
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* View Note Modal - Fixed background with formatted description */}
+            {/* View Note Modal - UPDATED to use renderRichText */}
             {showViewModal && viewingNote && (
                 <div className="fixed inset-0 bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm" onClick={handleCloseViewModal}>
                     <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -679,9 +727,8 @@ const NotesPage = () => {
 
                             <div className="mb-6">
                                 <div className="bg-gradient-to-br from-gray-50 to-white rounded-lg p-6 border border-gray-200">
-                                    <div className="prose prose-sm max-w-none">
-                                        {formatDescription(viewingNote.description)}
-                                    </div>
+                                    {/* UPDATED: Use renderRichText instead of formatDescription */}
+                                    {renderRichText(viewingNote.description)}
                                 </div>
                             </div>
 
@@ -702,6 +749,21 @@ const NotesPage = () => {
                                         </span>
                                     )}
                                 </div>
+                                {/* Add alarm info */}
+                                {viewingNote.alarmAt && (
+                                    <div className="mt-3 pt-3 border-t border-gray-100">
+                                        <div className={`flex items-center gap-2 text-sm ${isAlarmUpcoming(viewingNote.alarmAt) ? 'text-orange-600' : 'text-gray-500'}`}>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                            </svg>
+                                            <span className="font-medium">Rappel prévu le:</span>
+                                            <span>{getAlarmDate(viewingNote.alarmAt)}</span>
+                                            {!isAlarmUpcoming(viewingNote.alarmAt) && (
+                                                <span className="ml-2 text-xs text-gray-400">(Rappel expiré)</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">

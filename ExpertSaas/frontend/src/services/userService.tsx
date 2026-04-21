@@ -38,6 +38,7 @@ export const userService = {
                     'Content-Type': 'multipart/form-data'
                 }
             });
+            localStorage.setItem('picture',response.data.user.picture);
             return response.data;
         } catch (e) {
             console.error(e);

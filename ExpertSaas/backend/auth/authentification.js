@@ -480,8 +480,8 @@ router.post('/login', async (req, res) => {
             email:user.email,
             firstname:user.firstname,
             lastname:user.lastname,
-            userId:user.id
-
+            userId:user.id,
+            picture:user.picture
         });
 
     } catch (e) {

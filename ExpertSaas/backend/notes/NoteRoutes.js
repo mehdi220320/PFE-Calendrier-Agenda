@@ -1,9 +1,8 @@
-// noteRoutes.js (Fixed Routes)
 const express = require('express');
 const router = express.Router();
 const Note = require('./Note');
 const { authentication } = require('../middleware/authMiddleware');
-
+const { alarmQueue } = require("../config/queue.js");
 router.get('/myNotes', authentication, async (req, res) => {
     try {
         const id = req.user.userId;
@@ -53,7 +52,7 @@ router.get('/myNotes/:i', authentication, async (req, res) => {
 router.post('/add', authentication, async (req, res) => {
     try {
         const id = req.user.userId;
-        const { description, client, meeting, title } = req.body;
+        const { description, client, meeting, title,alarmAt } = req.body;
 
         if (!title || !description) {
             return res.status(400).json({ error: "Le titre et la description sont requis" });
@@ -64,8 +63,21 @@ router.post('/add', authentication, async (req, res) => {
             description: description,
             creator: id,
             client: client || null,
-            meeting: meeting || null
+            meeting: meeting || null,
+            alarmAt: alarmAt || null
         });
+
+        if(alarmAt){
+            const delay = new Date(note.alarmAt) - new Date();
+
+            if (delay > 0) {
+                await alarmQueue.add(
+                    "alarm-job",
+                    { noteId: note.id },
+                    { delay,jobId:note.id }
+                );
+            }
+        }
         res.json(note);
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -76,7 +88,7 @@ router.patch('/edit/:id', authentication, async (req, res) => {
     try {
         const userId = req.user.userId;
         const noteId = req.params.id;
-        const { title, description, client, meeting } = req.body;
+        const { title, description, client, meeting,alarmAt } = req.body;
 
         const note = await Note.findByPk(noteId);
 
@@ -92,7 +104,25 @@ router.patch('/edit/:id', authentication, async (req, res) => {
         if (description !== undefined) note.description = description;
         if (client !== undefined) note.client = client;
         if (meeting !== undefined) note.meeting = meeting;
+        if (alarmAt !== undefined) {
+            note.alarmAt = alarmAt;
 
+            const job = await alarmQueue.getJob(note.id);
+            if (job) await job.remove();
+
+            if (alarmAt) {
+                const delay = new Date(alarmAt) - new Date();
+
+                if (delay > 0) {
+                    await alarmQueue.add("alarm-job", {
+                        noteId: note.id
+                    }, {
+                        delay,
+                        jobId: note.id
+                    });
+                }
+            }
+        }
         await note.save();
         res.json(note);
     } catch (e) {

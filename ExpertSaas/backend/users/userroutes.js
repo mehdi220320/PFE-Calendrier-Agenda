@@ -67,6 +67,7 @@ router.patch('/picture/:id',adminAuthorization,upload.single('picture'),async(re
         }
         user.picture=photoUrl;
         await user.save();
+        delete user.password;
         res.status(200).json({message:"picture updated successfuly",user:user})
     }catch (e) {
         res.status(500).json({message:e.message})

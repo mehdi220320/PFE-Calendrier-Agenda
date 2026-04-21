@@ -14,6 +14,8 @@ import JitsiRoom from "./pages/meeting/JitsiRoom.tsx";
 import MyProfilePage from "./pages/myProfile/MyProfilePage.tsx";
 import Messenger from "./pages/messenger/Messenger.tsx";
 import NotesPage from "./pages/note/NotesPage.tsx";
+import UserReclamationsPage from "./pages/reclamation/UserReclamationsPage.tsx";
+import AdminReclamationsPage from "./admin/pages/reclamation/AdminReclamationsPage.tsx";
 
 const Users = lazy(() => import('./admin/pages/users/Users.tsx'));
 const Meetings = lazy(() => import('./admin/pages/Meetings.tsx'));
@@ -47,6 +49,7 @@ function App() {
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 <Route path="/planification" element={<ProtectedRoute><PlanificationPage /></ProtectedRoute>} />
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/reclamations" element={<ProtectedRoute><UserReclamationsPage /></ProtectedRoute>} />
                 <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
                 <Route path="/myprofile" element={<ProtectedRoute><MyProfilePage /></ProtectedRoute>} />
                 <Route path="/myavailability" element={<ProtectedRoute><AvailabilityPage /></ProtectedRoute>} />
@@ -84,6 +87,16 @@ function App() {
                         <ProtectedRoute>
                             <Suspense fallback={<PageLoader />}>
                                 <CategoriesManagement />
+                            </Suspense>
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/admin/reclamations"
+                    element={
+                        <ProtectedRoute>
+                            <Suspense fallback={<PageLoader />}>
+                                <AdminReclamationsPage />
                             </Suspense>
                         </ProtectedRoute>
                     }
