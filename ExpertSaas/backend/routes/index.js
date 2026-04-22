@@ -8,5 +8,6 @@ module.exports = (app) => {
     app.use('/api/messenger', require('../messenger/MessengerRoutes'));
     app.use('/api/note', require('../notes/NoteRoutes'));
     app.use('/api/dashboard/expert', require('../dashboard/ExpertDashboardRoute'));
+    app.use('/api/dashboard/admin', require('../dashboard/AdminDashboardRoutes'));
     app.use('/api/reclamation', require('../reclamations/ReclamationRoutes'));
 };

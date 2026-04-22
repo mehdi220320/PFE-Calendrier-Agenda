@@ -109,7 +109,6 @@ export const reclamationService = {
         }
     },
 
-    // Admin functions
     getAllReclamations: async (filters?: { status?: string; priority?: string; category?: string }): Promise<Reclamation[]> => {
         try {
             const params = new URLSearchParams();

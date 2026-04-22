@@ -69,7 +69,6 @@ const Reclamation = sequelize.define("Reclamation", {
         type: DataTypes.DATE,
         allowNull: true
     },
-    // Additional metadata
     category: {
         type: DataTypes.ENUM('technical', 'billing', 'service', 'other'),
         defaultValue: 'other'
