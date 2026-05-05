@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Briefcase, Calendar, Video, Menu, X, MessageCircle } from 'lucide-react';
+import { Briefcase, Calendar, Video, Menu, X, FileCheck,MessageCircle } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
 function Header() {
@@ -72,6 +72,18 @@ function Header() {
                             >
                                 <MessageCircle className="h-4 w-4" />
                                 <span>Messagerie</span>
+                            </Link>
+
+                            <Link
+                                to="/documents"
+                                className={`flex items-center space-x-2 text-sm font-medium px-3 py-2 rounded-md transition-colors ${
+                                    isActive('/documents')
+                                        ? 'text-blue-600 bg-blue-100'
+                                        : 'text-gray-600 hover:text-blue-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                <FileCheck className="h-4 w-4" />
+                                <span>Documents</span>
                             </Link>
 
                             <div className="h-6 w-px bg-gray-300 mx-2"></div>

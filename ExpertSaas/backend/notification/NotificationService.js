@@ -3,7 +3,7 @@ const { getIO } = require("../socket");
 
 class NotificationService {
 
-    static async createNotification({ title, description, userId ,meetingId,noteId}) {
+    static async createNotification({ title, description, userId ,meetingId,noteId,documentId}) {
         try {
 
             const notification = await Notification.create({
@@ -12,6 +12,7 @@ class NotificationService {
                 user: userId,
                 meeting:meetingId? meetingId : null,
                 note:noteId? noteId : null,
+                document:documentId? documentId : null,
             });
 
             const io = getIO();

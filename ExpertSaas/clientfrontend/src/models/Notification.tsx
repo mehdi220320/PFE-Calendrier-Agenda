@@ -5,6 +5,7 @@
         user: string;
         read: boolean;
         meeting: string;
+        document: string;
         createdAt: string;
         updatedAt: string;
     }

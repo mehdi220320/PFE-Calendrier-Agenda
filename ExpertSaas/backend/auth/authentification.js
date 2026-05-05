@@ -20,6 +20,7 @@ const generateAuthToken = async (user) => {
         {
             userId: user.id,
             email: user.email,
+            firstname: user.firstname,
             role: user.role,
             picture: user.picture
         },

@@ -7,6 +7,7 @@ const uploadToCloudinary = require('../config/cloudinary');
 require('../models/Associations');
 const User = require("../models/User");
 const { fn, col } = require('sequelize');
+const {createNotification} = require("../notification/NotificationService");
 
 // Configure multer for memory storage (files will be uploaded to Cloudinary)
 const storage = multer.memoryStorage();
@@ -96,6 +97,12 @@ router.post('/send', authentication, upload.array('files', 10), async (req, res)
                     attributes: ['id', 'firstname', 'email']
                 }
             ]
+        });
+        await createNotification({
+            title: `📄 Nouveau document reçu`,
+            description: `${req.user.firstname} vous a envoyé un nouveau document : "${title}"`,
+            userId: receiverId,
+            documentId: document.id
         });
 
         return res.status(201).json({

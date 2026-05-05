@@ -9,7 +9,7 @@ import MyMeetingView from "./pages/meeting/MyMeetingView.tsx";
 import Calendar from "./pages/calendar/Calendar.tsx";
 import JitsiRoom from "./pages/meeting/JitsiRoom.tsx";
 import Messenger from "./pages/messenger/Messenger.tsx";
-
+import ReceivedDocuments from "./pages/document/ReceivedDocuments.tsx"
 const LoadingSpinner = () => (
     <div className="fixed inset-0 flex items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -69,6 +69,22 @@ function App() {
                     element={
                         <ProtectedRoute>
                             <HomePage />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/documents"
+                    element={
+                        <ProtectedRoute>
+                            <ReceivedDocuments />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/documents/:documentId"
+                    element={
+                        <ProtectedRoute>
+                            <ReceivedDocuments />
                         </ProtectedRoute>
                     }
                 />
