@@ -1,4 +1,5 @@
 import axios from 'axios';
+import {authService} from "./authservice.tsx";
 
 const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -14,7 +15,16 @@ api.interceptors.request.use((config) => {
     }
     return config;
 });
-
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            authService.logout();
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    }
+);
 export const NoteService = {
     getMyNotes: async () => {
         try {

@@ -1,4 +1,3 @@
-// Messenger.tsx
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { UserServices } from '../../services/UserServices.tsx';

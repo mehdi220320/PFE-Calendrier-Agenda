@@ -120,7 +120,7 @@ router.get('/files/client/:conversationId', googleAuth, async (req, res) => {
     }
 });
 
-router.post('/addMessage/client/:conversationId',googleAuth,async(req,res)=>{
+router.post('/addMessage/client/:conversationId',googleAuth, upload.array('files', 10),async(req,res)=>{
     try {
         const clientId=req.user.id;
         const conversationId=req.params.conversationId

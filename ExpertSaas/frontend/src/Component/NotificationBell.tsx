@@ -139,7 +139,13 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
         console.log('Unread count updated:', unread);
     }, [notifications]);
 
-    const markAsRead = async (notificationId: string, meetingId: string) => {
+    const markAsRead = async (notificationId: string, meetingId: string, event?: React.MouseEvent) => {
+        // Stop event propagation to prevent any parent handlers
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+
         try {
             await notificationService.readNotification(notificationId);
             setNotifications(prev => {
@@ -160,7 +166,6 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
             console.error('Error marking notification as read:', error);
         }
     };
-
     const markAllAsRead = useCallback(async () => {
         try {
             // Get all unread notifications
@@ -302,7 +307,7 @@ const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) => {
                                         return (
                                             <div
                                                 key={notification.id}
-                                                onClick={() => markAsRead(notification.id, notification.meeting)}
+                                                onClick={(e) => markAsRead(notification.id, notification.meeting, e)}
                                                 className={`flex items-start space-x-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-0 ${
                                                     !notification.read ? 'bg-blue-50' : ''
                                                 }`}

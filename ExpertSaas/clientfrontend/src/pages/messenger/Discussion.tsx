@@ -16,6 +16,8 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
     const [sending, setSending] = useState(false);
     const [showFileViewer, setShowFileViewer] = useState(false);
     const [sharedFiles, setSharedFiles] = useState<{ pictures: string[], files: string[] }>({ pictures: [], files: [] });
+    const [loadingFiles, setLoadingFiles] = useState(false);
+    const [hasCheckedFiles, setHasCheckedFiles] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messageIdsRef = useRef<Set<string>>(new Set());
 
@@ -29,7 +31,7 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
     useEffect(() => {
         if (conversation) {
             fetchMessages();
-            fetchSharedFiles();
+            setHasCheckedFiles(false);
         }
 
         const unsubscribe = messengerService.onNewMessage((newMessage) => {
@@ -37,7 +39,8 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
                 if (!messageIdsRef.current.has(newMessage.id)) {
                     messageIdsRef.current.add(newMessage.id);
                     setMessages(prev => [...prev, newMessage]);
-                    if (newMessage.pictures?.length > 0 || newMessage.files?.length > 0) {
+                    // Only refetch files if viewer is already open
+                    if (showFileViewer && (newMessage.pictures?.length > 0 || newMessage.files?.length > 0)) {
                         fetchSharedFiles();
                     }
                 }
@@ -74,10 +77,23 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
         if (!conversation) return;
 
         try {
+            setLoadingFiles(true);
             const files = await messengerService.getFiles(conversation.id);
             setSharedFiles(files);
+            setHasCheckedFiles(true);
         } catch (err) {
             console.error('Error fetching shared files:', err);
+            setSharedFiles({ pictures: [], files: [] });
+        } finally {
+            setLoadingFiles(false);
+        }
+    };
+
+    const handleOpenFileViewer = async () => {
+        setShowFileViewer(true);
+        // Only fetch files if we haven't checked yet
+        if (!hasCheckedFiles) {
+            await fetchSharedFiles();
         }
     };
 
@@ -188,8 +204,6 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
         );
     }
 
-    const hasAnyFiles = sharedFiles.pictures.length > 0 || sharedFiles.files.length > 0;
-
     return (
         <>
             <div className="h-full flex flex-col bg-gray-50">
@@ -215,17 +229,23 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
                             </div>
                         </div>
 
-                        {hasAnyFiles && (
-                            <button
-                                onClick={() => setShowFileViewer(true)}
-                                className="text-gray-500 hover:text-indigo-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
-                                title="Fichiers partagés"
-                            >
+                        <button
+                            onClick={handleOpenFileViewer}
+                            disabled={loadingFiles}
+                            className="text-gray-500 hover:text-indigo-600 transition-colors p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+                            title="Fichiers partagés"
+                        >
+                            {loadingFiles ? (
+                                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                            ) : (
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                                 </svg>
-                            </button>
-                        )}
+                            )}
+                        </button>
                     </div>
                 </div>
 
@@ -283,6 +303,7 @@ const Discussion: React.FC<DiscussionProps> = ({ conversation, expert }) => {
                 <FileViewer
                     pictures={sharedFiles.pictures}
                     files={sharedFiles.files}
+                    loading={loadingFiles}
                     onClose={() => setShowFileViewer(false)}
                 />
             )}

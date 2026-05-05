@@ -2,6 +2,7 @@
 import axios from 'axios';
 import socketService from './socket.service';
 import {type Notification} from '../models/Notification.tsx'
+import {authService} from "./authservice.tsx";
 const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
 const api = axios.create({
@@ -15,7 +16,16 @@ api.interceptors.request.use((config) => {
     }
     return config;
 });
-
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            authService.logout();
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    }
+);
 class NotificationService {
     private listeners: ((notification: Notification) => void)[] = [];
     private initialized = false;

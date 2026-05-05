@@ -1,18 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-interface AuthResponse {
-    message: string;
-    token: string;
-    expiresIn: number;
-    role: string;
-    isActive: boolean;
-    email:string;
-    firstname: string;
-    lastname: string;
-    userId:string;
-    picture:string;
-}
+import { authService } from '../../services/authservice.tsx';
 
 function Login() {
     const [isLoading, setIsLoading] = useState(false);
@@ -23,8 +11,6 @@ function Login() {
         password: ''
     });
     const navigate = useNavigate();
-
-    const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -45,36 +31,15 @@ function Login() {
                 throw new Error('Veuillez remplir tous les champs');
             }
 
-            const response = await fetch(`${backendURL}/api/auth/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    email: formData.email,
-                    password: formData.password
-                }),
+            // Use authService instead of direct fetch
+            const data = await authService.login({
+                email: formData.email,
+                password: formData.password
             });
 
-            const data: AuthResponse = await response.json();
+            console.log("Login successful:", data);
 
-            if (!response.ok) {
-                throw new Error(data.message || 'Authentication failed');
-            }
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('userRole', data.role);
-            localStorage.setItem('isActive', String(data.isActive));
-            localStorage.setItem('email', String(data.email));
-            localStorage.setItem('firstname', String(data.firstname));
-            localStorage.setItem('lastname', String(data.lastname));
-            localStorage.setItem('user', String(data.userId));
-            localStorage.setItem('picture', String(data.picture));
-
-            console.log("data"+localStorage.getItem('token'))
-
-            const expirationTime = Date.now() + (data.expiresIn * 1000);
-            localStorage.setItem('tokenExpiration', expirationTime.toString());
-
+            // Redirect based on role
             if (data.role === 'admin') {
                 navigate('/admin/dashboard');
             } else {
@@ -83,7 +48,7 @@ function Login() {
 
         } catch (error: any) {
             console.error('Login error:', error);
-            setError(error.message || 'Échec de la connexion. Veuillez réessayer.');
+            setError(error.response?.data?.message || error.message || 'Échec de la connexion. Veuillez réessayer.');
         } finally {
             setIsLoading(false);
         }
@@ -138,7 +103,7 @@ function Login() {
                         <label className="text-sm font-medium text-gray-700">
                             Mot de passe
                         </label>
-                        <div className="relative" >
+                        <div className="relative">
                             <input
                                 type={showPassword ? "text" : "password"}
                                 name="password"
@@ -163,7 +128,7 @@ function Login() {
                     <div className="flex justify-end">
                         <button
                             type="button"
-                            style={{"cursor": "pointer"}}
+                            style={{ cursor: "pointer" }}
                             onClick={() => navigate('/forgot-password')}
                             className="text-sm text-indigo-600 hover:text-indigo-700 hover:underline"
                         >
@@ -197,11 +162,12 @@ function Login() {
                         )}
                     </button>
                 </form>
+
                 {/* Features */}
                 <div className="mt-6 grid grid-cols-2 gap-3 text-xs text-gray-600">
                     <div className="flex items-center gap-2">
                         <span>📆</span>
-                        <span>Planification d’événements personnalisés</span>
+                        <span>Planification d'événements personnalisés</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <span>🎥</span>
@@ -211,12 +177,12 @@ function Login() {
                         <span>⏰</span>
                         <span>Organisation optimisée du temps</span>
                     </div>
-
                     <div className="flex items-center gap-2">
                         <span>📊</span>
                         <span>Tableau de bord professionnel</span>
                     </div>
                 </div>
+
                 {/* Footer */}
                 <div className="mt-6 text-center text-xs text-gray-500">
                     En vous connectant, vous acceptez nos{' '}

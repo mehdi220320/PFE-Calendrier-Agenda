@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 interface FileViewerProps {
     pictures: string[];
     files: string[];
+    loading?: boolean;
     onClose: () => void;
 }
 
-const FileViewer: React.FC<FileViewerProps> = ({ pictures, files, onClose }) => {
+const FileViewer: React.FC<FileViewerProps> = ({ pictures, files, loading = false, onClose }) => {
     const [activeTab, setActiveTab] = useState<'pictures' | 'files'>('pictures');
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
@@ -47,103 +48,118 @@ const FileViewer: React.FC<FileViewerProps> = ({ pictures, files, onClose }) => 
                             </div>
                         </div>
 
-                        <div className="flex border-b border-gray-200 px-6">
-                            <button
-                                onClick={() => setActiveTab('pictures')}
-                                className={`px-4 py-3 text-sm font-medium transition-colors ${
-                                    activeTab === 'pictures'
-                                        ? 'text-indigo-600 border-b-2 border-indigo-600'
-                                        : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                            >
-                                Images ({pictures.length})
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('files')}
-                                className={`px-4 py-3 text-sm font-medium transition-colors ${
-                                    activeTab === 'files'
-                                        ? 'text-indigo-600 border-b-2 border-indigo-600'
-                                        : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                            >
-                                Fichiers ({files.length})
-                            </button>
-                        </div>
+                        {loading ? (
+                            <div className="flex-1 flex items-center justify-center p-8">
+                                <div className="text-center">
+                                    <svg className="animate-spin h-12 w-12 mx-auto text-indigo-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <p className="text-gray-500 font-medium">Chargement des fichiers...</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex border-b border-gray-200 px-6">
+                                    <button
+                                        onClick={() => setActiveTab('pictures')}
+                                        className={`px-4 py-3 text-sm font-medium transition-colors ${
+                                            activeTab === 'pictures'
+                                                ? 'text-indigo-600 border-b-2 border-indigo-600'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        Images ({pictures.length})
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('files')}
+                                        className={`px-4 py-3 text-sm font-medium transition-colors ${
+                                            activeTab === 'files'
+                                                ? 'text-indigo-600 border-b-2 border-indigo-600'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        Fichiers ({files.length})
+                                    </button>
+                                </div>
 
-                        <div className="flex-1 overflow-y-auto p-6">
-                            {activeTab === 'pictures' ? (
-                                pictures.length === 0 ? (
-                                    <div className="text-center text-gray-500 py-12">
-                                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                        <p className="mt-2">Aucune image partagée</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                        {pictures.map((pic, idx) => (
-                                            <div
-                                                key={idx}
-                                                className="relative group cursor-pointer"
-                                                onClick={() => setSelectedImage(pic)}
-                                            >
-                                                <img
-                                                    src={pic}
-                                                    alt={`Image ${idx + 1}`}
-                                                    className="w-full h-48 object-cover rounded-lg shadow-md hover:shadow-xl transition-shadow"
-                                                />
-                                                <div className="absolute inset-0  bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
-                                                    <svg className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                                    </svg>
-                                                </div>
+                                <div className="flex-1 overflow-y-auto p-6">
+                                    {activeTab === 'pictures' ? (
+                                        pictures.length === 0 ? (
+                                            <div className="text-center text-gray-500 py-12">
+                                                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                                <p className="mt-2">Aucune image partagée</p>
                                             </div>
-                                        ))}
-                                    </div>
-                                )
-                            ) : (
-                                files.length === 0 ? (
-                                    <div className="text-center text-gray-500 py-12">
-                                        <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                                        </svg>
-                                        <p className="mt-2">Aucun fichier partagé</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {files.map((file, idx) => {
-                                            const fileName = formatFileName(file);
-                                            return (
-                                                <a
-                                                    key={idx}
-                                                    href={file}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
-                                                >
-                                                    <div className="flex items-center space-x-3">
-                                                        <span className="text-2xl">{getFileIcon(fileName)}</span>
-                                                        <div>
-                                                            <p className="font-medium text-gray-900">{fileName}</p>
-                                                            <p className="text-xs text-gray-500">Cliquez pour télécharger</p>
+                                        ) : (
+                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                                {pictures.map((pic, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        className="relative group cursor-pointer"
+                                                        onClick={() => setSelectedImage(pic)}
+                                                    >
+                                                        <img
+                                                            src={pic}
+                                                            alt={`Image ${idx + 1}`}
+                                                            className="w-full h-48 object-cover rounded-lg shadow-md hover:shadow-xl transition-shadow"
+                                                        />
+                                                        <div className="absolute inset-0 bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
+                                                            <svg className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                                            </svg>
                                                         </div>
                                                     </div>
-                                                    <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                                    </svg>
-                                                </a>
-                                            );
-                                        })}
-                                    </div>
-                                )
-                            )}
-                        </div>
+                                                ))}
+                                            </div>
+                                        )
+                                    ) : (
+                                        files.length === 0 ? (
+                                            <div className="text-center text-gray-500 py-12">
+                                                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                                </svg>
+                                                <p className="mt-2">Aucun fichier partagé</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {files.map((file, idx) => {
+                                                    const fileName = formatFileName(file);
+                                                    return (
+                                                        <a
+                                                            key={idx}
+                                                            href={file}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
+                                                        >
+                                                            <div className="flex items-center space-x-3">
+                                                                <span className="text-2xl">{getFileIcon(fileName)}</span>
+                                                                <div>
+                                                                    <p className="font-medium text-gray-900">{fileName}</p>
+                                                                    <p className="text-xs text-gray-500">Cliquez pour télécharger</p>
+                                                                </div>
+                                                            </div>
+                                                            <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                            </svg>
+                                                        </a>
+                                                    );
+                                                })}
+                                            </div>
+                                        )
+                                    )}
+                                </div>
+                            </>
+                        )}
 
                         <div className="bg-gray-50 px-6 py-3 flex justify-end rounded-b-lg">
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                                disabled={loading}
+                                className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Fermer
                             </button>

@@ -23,13 +23,18 @@ const uploadToCloudinary = (fileBuffer, originalFilename) => {
             },
             (error, result) => {
                 if (result) {
-                    // ✅ Just fix the /image/ -> /raw/ misclassification, nothing else
+                    // ✅ Fix the /image/ -> /raw/ misclassification
                     if (result.resource_type === "raw") {
                         result.secure_url = result.secure_url.replace(
                             "/image/upload/",
                             "/raw/upload/"
                         );
                     }
+
+                    // ✅ AJOUT: Ajouter le paramètre de téléchargement forcé
+                    // Cela force Cloudinary à servir le fichier en téléchargement au lieu de l'afficher
+                    result.secure_url = result.secure_url + "?fl_attachment=true";
+
                     resolve(result);
                 } else {
                     reject(error);

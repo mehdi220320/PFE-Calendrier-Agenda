@@ -1,4 +1,5 @@
 import axios from 'axios';
+import {authService} from "./authservice.tsx";
 
 const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -14,6 +15,16 @@ api.interceptors.request.use((config) => {
     }
     return config;
 });
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            authService.logout();
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    }
+);
 
 export interface Reclamation {
     id: string;
@@ -76,26 +87,6 @@ export const reclamationService = {
             return response.data.data || response.data;
         } catch (error) {
             console.error('Error fetching my reclamations:', error);
-            throw error;
-        }
-    },
-
-    getReclamationById: async (id: string): Promise<Reclamation> => {
-        try {
-            const response = await api.get(`/reclamations/${id}`);
-            return response.data.data || response.data;
-        } catch (error) {
-            console.error('Error fetching reclamation:', error);
-            throw error;
-        }
-    },
-
-    updateReclamation: async (id: string, data: Partial<CreateReclamationData>): Promise<Reclamation> => {
-        try {
-            const response = await api.put(`/reclamations/${id}`, data);
-            return response.data.data || response.data;
-        } catch (error) {
-            console.error('Error updating reclamation:', error);
             throw error;
         }
     },

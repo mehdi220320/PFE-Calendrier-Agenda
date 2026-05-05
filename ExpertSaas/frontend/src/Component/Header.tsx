@@ -3,25 +3,38 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import FloatingNoteButton from './FloatingNoteButton';
 import { meetingService } from '../services/meetingService.tsx';
+import { authService } from '../services/authService';
+
+interface Meeting {
+    id: string;
+    creatorUser?: {
+        id: string;
+        name?: string;
+        email?: string;
+    };
+    [key: string]: any;
+}
 
 function Header() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-    const [meetings, setMeetings] = useState([]);
+    const [meetings, setMeetings] = useState<Meeting[]>([]);
     const [userPicture, setUserPicture] = useState<string | null>(null);
     const navigate = useNavigate();
     const location = useLocation();
+
+    const isAuthenticated = authService.isAuthenticated();
 
     useEffect(() => {
         if (isAuthenticated) {
             fetchMeetings();
             loadUserPicture();
         }
-    }, []);
+    }, [isAuthenticated]);
 
     const loadUserPicture = () => {
-        const picture = localStorage.getItem('picture');
-        setUserPicture(picture);
+        const userInfo = authService.getUserInfo();
+        setUserPicture(userInfo.picture);
     };
 
     const fetchMeetings = async () => {
@@ -34,62 +47,43 @@ function Header() {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('expert');
-        localStorage.removeItem('tokenExpiration');
-        localStorage.removeItem('picture');
-        localStorage.removeItem('dashboard-popup-seen');
-        localStorage.removeItem('firstname')
-        localStorage.removeItem('lastname')
-        localStorage.removeItem('isActive')
+        authService.logout();
         navigate('/login');
     };
 
-    const isAuthenticated = !!localStorage.getItem('token');
-
-    const getUserId = () => {
-        try {
-            return localStorage.getItem('user');
-        } catch (error) {
-            console.error('Error getting userId:', error);
-        }
-        return null;
+    const getUserId = (): string | null => {
+        const userInfo = authService.getUserInfo();
+        return userInfo.userId;
     };
 
     const userId = getUserId();
 
     const isActive = (path: string) => location.pathname === path;
 
-    const getUserName = () => {
-        try {
-            const email = localStorage.getItem('email');
-            const lastname = localStorage.getItem('lastname');
-            const firstname = localStorage.getItem('firstname');
-            const name = firstname + " " + lastname;
-            if (name || email) {
-                return name || email || 'User';
-            }
-        } catch (error) {
-            console.error('Error getting user name:', error);
+    const getUserName = (): string => {
+        const userInfo = authService.getUserInfo();
+        const { firstname, lastname, email } = userInfo;
+
+        if (firstname && lastname) {
+            return `${firstname} ${lastname}`;
         }
-        return 'John Doe';
+        if (firstname) return firstname;
+        if (email) return email;
+        return 'Utilisateur';
     };
 
-    const getUserEmail = () => {
-        try {
-            const email = localStorage.getItem('email');
-            if (email) {
-                return email || 'user@example.com';
-            }
-        } catch (error) {
-            console.error('Error getting user email:', error);
-        }
-        return 'john.doe@example.com';
+    const getUserEmail = (): string => {
+        const userInfo = authService.getUserInfo();
+        return userInfo.email || 'utilisateur@exemple.com';
     };
 
-    const getUserInitials = () => {
+    const getUserInitials = (): string => {
         const name = getUserName();
-        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        const parts = name.split(' ');
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[1][0]).toUpperCase().slice(0, 2);
+        }
+        return name.slice(0, 2).toUpperCase();
     };
 
     const getUniqueClients = () => {
@@ -109,15 +103,16 @@ function Header() {
 
     const handleNoteCreated = () => {
         console.log('Note created successfully');
+        fetchMeetings(); // Refresh meetings after creating a note
     };
 
     return (
         <>
-            <header className="bg-white shadow-sm border-b border-gray-200">
+            <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
                 <nav className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8" aria-label="Global">
                     {/* Logo */}
                     <div className="flex lg:flex-1">
-                        <Link to="/" className="-m-1.5 p-1.5">
+                        <Link to={isAuthenticated ? "/dashboard" : "/"} className="-m-1.5 p-1.5">
                             <span className="sr-only">ExpertFlow</span>
                             <div className="flex items-center gap-2">
                                 <span className="text-2xl">📅</span>
@@ -232,6 +227,27 @@ function Header() {
                                     Messenger
                                 </span>
                             </Link>
+                            <Link
+                                to="/documents"
+                                className={`text-sm font-semibold leading-6 px-3 py-2 rounded-lg transition-colors ${
+                                    isActive('/documents')
+                                        ? 'bg-indigo-50 text-indigo-600'
+                                        : 'text-gray-900 hover:bg-gray-50'
+                                }`}
+                            >
+                                <span className="flex items-center gap-2">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5l5 5v11a2 2 0 01-2 2z"
+                                      />
+                                    </svg>
+                                    Documents
+                                </span>
+                            </Link>
+
                         </div>
                     )}
 
@@ -258,8 +274,11 @@ function Header() {
                                                     className="w-full h-full object-cover"
                                                     onError={(e) => {
                                                         // If image fails to load, show initials instead
-                                                        e.currentTarget.style.display = 'none';
-                                                        e.currentTarget.parentElement!.innerHTML = `<span class="text-sm font-medium">${userInitials}</span>`;
+                                                        const target = e.currentTarget;
+                                                        target.style.display = 'none';
+                                                        if (target.parentElement) {
+                                                            target.parentElement.innerHTML = `<span class="text-sm font-medium">${userInitials}</span>`;
+                                                        }
                                                     }}
                                                 />
                                             ) : (
@@ -267,7 +286,7 @@ function Header() {
                                             )}
                                         </div>
                                         <span className="flex items-center gap-1">
-                                            {userName}
+                                            {userName.split(' ')[0]} {/* Show first name only */}
                                             <svg
                                                 className={`w-4 h-4 transition-transform duration-200 ${isProfileMenuOpen ? 'rotate-180' : ''}`}
                                                 fill="none"
@@ -299,8 +318,11 @@ function Header() {
                                                                 alt={userName}
                                                                 className="w-full h-full object-cover"
                                                                 onError={(e) => {
-                                                                    e.currentTarget.style.display = 'none';
-                                                                    e.currentTarget.parentElement!.innerHTML = `<span class="text-sm font-medium">${userInitials}</span>`;
+                                                                    const target = e.currentTarget;
+                                                                    target.style.display = 'none';
+                                                                    if (target.parentElement) {
+                                                                        target.parentElement.innerHTML = `<span class="text-sm font-medium">${userInitials}</span>`;
+                                                                    }
                                                                 }}
                                                             />
                                                         ) : (
@@ -453,8 +475,11 @@ function Header() {
                                                             alt={userName}
                                                             className="w-full h-full object-cover"
                                                             onError={(e) => {
-                                                                e.currentTarget.style.display = 'none';
-                                                                e.currentTarget.parentElement!.innerHTML = `<span class="text-sm font-medium">${userInitials}</span>`;
+                                                                const target = e.currentTarget;
+                                                                target.style.display = 'none';
+                                                                if (target.parentElement) {
+                                                                    target.parentElement.innerHTML = `<span className="text-sm font-medium">${userInitials}</span>`;
+                                                                }
                                                             }}
                                                         />
                                                     ) : (
@@ -465,6 +490,12 @@ function Header() {
                                                     <p className="text-sm font-semibold text-gray-900 truncate">{userName}</p>
                                                     <p className="text-xs text-gray-500 truncate">{userEmail}</p>
                                                 </div>
+                                                {/* Add NotificationBell here for mobile */}
+                                                {userId && (
+                                                    <div className="flex-shrink-0">
+                                                        <NotificationBell userId={userId} />
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Dashboard */}
@@ -562,6 +593,22 @@ function Header() {
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                                                 </svg>
                                                 Messenger
+                                            </Link>
+
+                                            {/* Réclamations */}
+                                            <Link
+                                                to="/reclamations"
+                                                onClick={() => setIsMobileMenuOpen(false)}
+                                                className={`flex items-center gap-3 px-3 py-3 text-base font-semibold rounded-lg transition-colors ${
+                                                    isActive('/reclamations')
+                                                        ? 'bg-indigo-50 text-indigo-600'
+                                                        : 'text-gray-900 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                Réclamations
                                             </Link>
 
                                             {/* Divider */}

@@ -393,4 +393,20 @@ router.get('/expertCount',googleAuth,async(req,res)=>{
     }
 })
 
+router.get('/allClients',authentication,async (req,res)=>{
+    try {
+        const users=await User.findAll({
+            where:{role:'user'},
+            attributes: ['id', 'firstname', 'lastname', 'email','picture']
+        });
+
+        res.status(201).send({
+            messsage:"Get all users works successfully",
+            users
+        })
+    }catch (e) {
+        res.status(500).send({ message: e.message });
+    }
+})
+
 module.exports = router;
