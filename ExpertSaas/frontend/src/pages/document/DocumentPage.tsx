@@ -4,6 +4,7 @@ import type { Document, CreateDocumentData, UpdateDocumentData } from '../../mod
 import DocumentCard from './DocumentCard';
 import DocumentModal from './DocumentModal';
 import ConfirmDialog from './ConfirmDialog';
+import ShareModal from './ShareModal';
 import { Plus, RefreshCw, FileText, Send, Eye } from 'lucide-react';
 import Header from "../../Component/Header";
 
@@ -13,7 +14,9 @@ const DocumentPage: React.FC = () => {
     const [erreur, setErreur] = useState<string | null>(null);
     const [modalCreationOuverte, setModalCreationOuverte] = useState(false);
     const [modalEditionOuverte, setModalEditionOuverte] = useState(false);
+    const [modalPartageOuverte, setModalPartageOuverte] = useState(false);
     const [documentSelectionne, setDocumentSelectionne] = useState<Document | null>(null);
+    const [documentPartage, setDocumentPartage] = useState<Document | null>(null);
     const [dialogConfirmation, setDialogConfirmation] = useState<{
         estOuvert: boolean;
         titre: string;
@@ -99,6 +102,20 @@ const DocumentPage: React.FC = () => {
         setModalEditionOuverte(true);
     };
 
+    const handlePartagerDocument = (document: Document) => {
+        if (document.status === 'viewed') {
+            setErreur('Impossible de partager un document déjà consulté');
+            setTimeout(() => setErreur(null), 3000);
+            return;
+        }
+        setDocumentPartage(document);
+        setModalPartageOuverte(true);
+    };
+
+    const handleShareSuccess = async () => {
+        await recupererDocuments();
+    };
+
     const documentsFiltres = documents.filter(doc => {
         if (filtre === 'tous') return true;
         if (filtre === 'envoyes') return doc.status === 'sent';
@@ -135,7 +152,7 @@ const DocumentPage: React.FC = () => {
                                 className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-md hover:shadow-lg"
                             >
                                 <Plus className="w-5 h-5 mr-2" />
-                                Envoyer un document
+                                Enregistrer un document
                             </button>
                         </div>
                     </div>
@@ -266,6 +283,7 @@ const DocumentPage: React.FC = () => {
                                     document={document}
                                     onEdit={handleClicModifier}
                                     onDelete={handleSupprimerDocument}
+                                    onShare={handlePartagerDocument}
                                 />
                             ))}
                         </div>
@@ -290,6 +308,19 @@ const DocumentPage: React.FC = () => {
                         onSubmit={(donnees) => handleModifierDocument(documentSelectionne.id, donnees)}
                         mode="edit"
                         initialData={documentSelectionne}
+                    />
+                )}
+
+                {/* Modal de partage */}
+                {documentPartage && (
+                    <ShareModal
+                        isOpen={modalPartageOuverte}
+                        onClose={() => {
+                            setModalPartageOuverte(false);
+                            setDocumentPartage(null);
+                        }}
+                        document={documentPartage}
+                        onShareSuccess={handleShareSuccess}
                     />
                 )}
 

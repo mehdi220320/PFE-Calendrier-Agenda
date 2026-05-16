@@ -29,17 +29,25 @@ const Document = sequelize.define("Document", {
     },
     receiver: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         references: {
             model: 'Users',
             key: 'id'
         }
     },
+    sharedWith: {
+        type: DataTypes.JSON,
+        allowNull: true,
+        // references: {
+        //     model: 'Users',
+        //     key: 'id'
+        // },
+        defaultValue: [],
+    },
     files: {
         type: DataTypes.JSON,
         allowNull: true,
         defaultValue: [],
-        comment: 'Array of file objects with url, name, size, type'
     },
     status: {
         type: DataTypes.ENUM('pending', 'sent', 'received', 'viewed'),

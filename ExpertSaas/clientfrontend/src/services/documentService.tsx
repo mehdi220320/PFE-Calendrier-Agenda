@@ -119,13 +119,15 @@ export const documentService = {
         const response = await api.get<DocumentResponse>(`${documentId}`);
         return response.data;
     },
-    markAsViewed: async (documentId: string): Promise<void> => {
-        await api.get(`${documentId}`);
+
+    // Fixed: This was calling GET but should be a separate method for viewing
+    markAsViewed: async (documentId: string): Promise<DocumentResponse> => {
+        const response = await api.get<DocumentResponse>(`${documentId}`);
+        return response.data;
     },
+
     deleteFromInbox: async (documentId: string): Promise<{ message: string }> => {
         const response = await api.delete<{ message: string }>(`client/${documentId}`);
         return response.data;
     },
-
-
 };

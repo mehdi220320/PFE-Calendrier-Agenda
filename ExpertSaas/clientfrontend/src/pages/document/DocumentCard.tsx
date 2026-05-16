@@ -9,13 +9,15 @@ interface DocumentCardProps {
     onView?: (document: Document) => void;
     onDelete?: (documentId: string) => void;
     isDeleting?: boolean;
+    isLoading?: boolean;
 }
 
 const DocumentCard: React.FC<DocumentCardProps> = ({
                                                        document,
                                                        onView,
                                                        onDelete,
-                                                       isDeleting = false
+                                                       isDeleting = false,
+                                                       isLoading = false
                                                    }) => {
     const [showFiles, setShowFiles] = useState(false);
 
@@ -85,7 +87,7 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-gray-900">
-                                    {document.senderUser.firstname} {document.senderUser.lastname}
+                                    {document.senderUser.firstname} {document.senderUser.lastname || ''}
                                 </p>
                                 <p className={`text-xs truncate ${isUnread ? 'text-blue-600' : 'text-gray-500'}`}>
                                     {document.senderUser.email}
@@ -146,16 +148,19 @@ const DocumentCard: React.FC<DocumentCardProps> = ({
                     {onView && (
                         <button
                             onClick={() => onView(document)}
+                            disabled={isLoading}
                             className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
-                                isUnread
-                                    ? 'bg-blue-500 text-white hover:bg-blue-600'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                isLoading
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : isUnread
+                                        ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                         >
-                            Voir détails
+                            {isLoading ? 'Chargement...' : 'Voir détails'}
                         </button>
                     )}
-                    {onDelete && document.status !== 'viewed' && (
+                    {onDelete && (
                         <button
                             onClick={() => onDelete(document.id)}
                             disabled={isDeleting}

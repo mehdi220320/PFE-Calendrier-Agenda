@@ -537,12 +537,12 @@ router.get('/nextMeet',googleAuth, async (req, res) => {
             ],
             order: [['date', 'ASC']]
         });
-
+        let message ;
         if (!meet) {
-            return res.status(404).send({ message: "You have no upcoming meetings" });
+             message= "You have no upcoming meetings" ;
         }
 
-        res.status(200).send({ meet });
+        res.status(200).send({ meet,message:message });
 
     } catch (error) {
         res.status(500).json({ message: error.message });

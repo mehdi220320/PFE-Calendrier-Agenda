@@ -1,4 +1,4 @@
-// services/documentService.ts
+// services/documentService.tsx
 import axios from 'axios';
 import { authService } from "./authservice.tsx";
 import type {
@@ -6,7 +6,8 @@ import type {
     AllDocumentsResponse,
     CreateDocumentData,
     UpdateDocumentData,
-    DocumentResponse
+    DocumentResponse,
+    ShareDocumentData
 } from '../models/Document';
 
 const backendURL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -36,14 +37,13 @@ api.interceptors.response.use(
 );
 
 export const documentService = {
-    // Expert endpoints
     sendDocument: async (data: CreateDocumentData): Promise<DocumentResponse> => {
         try {
             const formData = new FormData();
             formData.append('title', data.title);
             if (data.description) formData.append('description', data.description);
             if (data.summary) formData.append('summary', data.summary);
-            formData.append('receiverId', data.receiverId);
+            if (data.receiverId) formData.append('receiverId', data.receiverId);
 
             data.files.forEach((file) => {
                 formData.append('files', file);
@@ -87,6 +87,26 @@ export const documentService = {
             return response.data;
         } catch (error) {
             console.error('Error deleting document:', error);
+            throw error;
+        }
+    },
+
+    shareDocument: async (documentId: string, data: ShareDocumentData): Promise<DocumentResponse> => {
+        try {
+            const response = await api.post(`${documentId}/share`, data);
+            return response.data;
+        } catch (error) {
+            console.error('Error sharing document:', error);
+            throw error;
+        }
+    },
+
+    unshareDocument: async (documentId: string, userId: string): Promise<DocumentResponse> => {
+        try {
+            const response = await api.post(`${documentId}/unshare`, { userId });
+            return response.data;
+        } catch (error) {
+            console.error('Error unsharing document:', error);
             throw error;
         }
     },

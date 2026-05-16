@@ -1,32 +1,24 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const { authentication, googleAuth ,adminAuthorization} = require('../middleware/authMiddleware');
+const { authentication, googleAuth, adminAuthorization } = require('../middleware/authMiddleware');
 const Document = require('./Document');
 const uploadToCloudinary = require('../config/cloudinary');
 require('../models/Associations');
 const User = require("../models/User");
-const { fn, col } = require('sequelize');
-const {createNotification} = require("../notification/NotificationService");
+const { fn, col,Op, where} = require('sequelize');
+const { createNotification } = require("../notification/NotificationService");
 
-// Configure multer for memory storage (files will be uploaded to Cloudinary)
 const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 100 * 1024 * 1024 // 100MB max file size
+        fileSize: 100 * 1024 * 1024
     }
 });
 
 // ==================== EXPERT ENDPOINTS ====================
 
-/**
- * CREATE: Expert sends document(s) to client
- * POST /api/documents/send
- * Requires authentication middleware (expert)
- * Body: { title, description, summary, receiverId }
- * Files: multiple files can be attached
- */
 router.post('/send', authentication, upload.array('files', 10), async (req, res) => {
     try {
         const { title, description, summary, receiverId } = req.body;
@@ -37,18 +29,17 @@ router.post('/send', authentication, upload.array('files', 10), async (req, res)
             return res.status(400).json({ message: 'Title is required' });
         }
 
-        if (!receiverId) {
-            return res.status(400).json({ message: 'Receiver ID is required' });
-        }
-
         if (!req.files || req.files.length === 0) {
             return res.status(400).json({ message: 'At least one file is required' });
         }
 
-        // Verify receiver exists
-        const receiver = await User.findByPk(receiverId);
-        if (!receiver) {
-            return res.status(404).json({ message: 'Receiver not found' });
+        // Verify receiver exists only if receiverId is provided (optional)
+        let receiver = null;
+        if (receiverId && receiverId !== 'undefined') {
+            receiver = await User.findByPk(receiverId);
+            if (!receiver) {
+                return res.status(404).json({ message: 'Receiver not found' });
+            }
         }
 
         // Upload files and collect file data
@@ -78,9 +69,10 @@ router.post('/send', authentication, upload.array('files', 10), async (req, res)
             description: description || null,
             summary: summary || null,
             sender: expertId,
-            receiver: receiverId,
+            receiver: (receiverId && receiverId !== 'undefined') ? receiverId : null,
+            sharedWith: [],
             files: uploadedFiles,
-            status: 'sent'
+            status: receiverId && receiverId !== 'undefined' ? 'sent' : 'pending'
         });
 
         // Fetch complete document with relations
@@ -94,16 +86,20 @@ router.post('/send', authentication, upload.array('files', 10), async (req, res)
                 {
                     model: User,
                     as: 'receiverUser',
-                    attributes: ['id', 'firstname', 'email']
+                    attributes: ['id', 'firstname', 'email'],
+                    required: false
                 }
             ]
         });
-        await createNotification({
-            title: `📄 Nouveau document reçu`,
-            description: `${req.user.firstname} vous a envoyé un nouveau document : "${title}"`,
-            userId: receiverId,
-            documentId: document.id
-        });
+
+        if (receiver) {
+            await createNotification({
+                title: `📄 Nouveau document reçu`,
+                description: `${req.user.firstname} vous a envoyé un nouveau document : "${title}"`,
+                userId: receiverId,
+                documentId: document.id
+            });
+        }
 
         return res.status(201).json({
             message: 'Document sent successfully',
@@ -119,11 +115,6 @@ router.post('/send', authentication, upload.array('files', 10), async (req, res)
     }
 });
 
-/**
- * READ: Expert views all documents sent by them
- * GET /api/documents/sent
- * Requires authentication middleware (expert)
- */
 router.get('/sent', authentication, async (req, res) => {
     try {
         const expertId = req.user.userId;
@@ -156,16 +147,10 @@ router.get('/sent', authentication, async (req, res) => {
     }
 });
 
-/**
- * UPDATE: Expert updates a document
- * PUT /api/documents/:documentId
- * Requires authentication middleware (expert)
- * Can update title, description, summary
- */
 router.put('/:documentId', authentication, async (req, res) => {
     try {
         const { documentId } = req.params;
-        const { title, description, summary } = req.body;
+        const { title, description, summary, receiverId } = req.body;
         const expertId = req.user.userId;
 
         const document = await Document.findByPk(documentId);
@@ -182,6 +167,15 @@ router.put('/:documentId', authentication, async (req, res) => {
         // Prevent updating viewed documents
         if (document.status === 'viewed') {
             return res.status(400).json({ message: 'Cannot update a viewed document' });
+        }
+
+        // Verify new receiver if provided
+        if (receiverId && receiverId !== 'undefined') {
+            const receiver = await User.findByPk(receiverId);
+            if (!receiver) {
+                return res.status(404).json({ message: 'Receiver not found' });
+            }
+            document.receiver = receiverId;
         }
 
         // Update allowed fields
@@ -220,12 +214,6 @@ router.put('/:documentId', authentication, async (req, res) => {
     }
 });
 
-/**
- * DELETE: Expert deletes a document
- * DELETE /api/documents/:documentId
- * Requires authentication middleware (expert)
- * Can only delete pending or sent documents
- */
 router.delete('/:documentId', authentication, async (req, res) => {
     try {
         const { documentId } = req.params;
@@ -263,32 +251,173 @@ router.delete('/:documentId', authentication, async (req, res) => {
     }
 });
 
-// ==================== CLIENT ENDPOINTS ====================
+// ==================== SHARE ENDPOINTS ====================
 
-/**
- * READ: Client views all documents received
- * GET /api/documents/received
- * Requires googleAuth middleware (client)
- */
-router.get('/received', googleAuth, async (req, res) => {
+router.post('/:documentId/share', authentication, async (req, res) => {
     try {
-        const clientId = req.user.id;
+        const { documentId } = req.params;
+        const { userIds } = req.body; // Array of user IDs to share with
+        const expertId = req.user.userId;
 
-        const documents = await Document.findAll({
-            where: { receiver: clientId },
+        if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+            return res.status(400).json({ message: 'At least one user ID is required' });
+        }
+
+        const document = await Document.findByPk(documentId);
+
+        if (!document) {
+            return res.status(404).json({ message: 'Document not found' });
+        }
+
+        // Verify ownership
+        if (document.sender !== expertId) {
+            return res.status(403).json({ message: 'Unauthorized: You can only share your own documents' });
+        }
+
+        // Verify all users exist
+        const users = await User.findAll({ where: { id: userIds } });
+        if (users.length !== userIds.length) {
+            return res.status(404).json({ message: 'One or more users not found' });
+        }
+
+        // Update sharedWith array (avoid duplicates)
+        const currentSharedWith = document.sharedWith || [];
+        const updatedSharedWith = [...new Set([...currentSharedWith, ...userIds])];
+        document.sharedWith = updatedSharedWith;
+        await document.save();
+
+        // Send notifications to all shared users
+        for (const userId of userIds) {
+            if (!currentSharedWith.includes(userId)) { // Only notify if not already shared
+                await createNotification({
+                    title: `📄 Document partagé`,
+                    description: `${req.user.firstname} a partagé un document avec vous : "${document.title}"`,
+                    userId: userId,
+                    documentId: document.id
+                });
+            }
+        }
+
+        const updatedDocument = await Document.findByPk(documentId, {
             include: [
                 {
                     model: User,
                     as: 'senderUser',
                     attributes: ['id', 'firstname', 'email']
+                },
+                {
+                    model: User,
+                    as: 'receiverUser',
+                    attributes: ['id', 'firstname', 'email']
+                }
+            ]
+        });
+
+        return res.status(200).json({
+            message: 'Document shared successfully',
+            document: updatedDocument
+        });
+
+    } catch (error) {
+        console.error('Error sharing document:', error);
+        return res.status(500).json({
+            message: 'Error sharing document',
+            error: error.message
+        });
+    }
+});
+
+router.post('/:documentId/unshare', authentication, async (req, res) => {
+    try {
+        const { documentId } = req.params;
+        const { userId } = req.body;
+        const expertId = req.user.userId;
+
+        if (!userId) {
+            return res.status(400).json({ message: 'User ID is required' });
+        }
+
+        const document = await Document.findByPk(documentId);
+
+        if (!document) {
+            return res.status(404).json({ message: 'Document not found' });
+        }
+
+        // Verify ownership
+        if (document.sender !== expertId) {
+            return res.status(403).json({ message: 'Unauthorized: You can only unshare your own documents' });
+        }
+
+        // Remove user from sharedWith array
+        const sharedWith = document.sharedWith || [];
+        document.sharedWith = sharedWith.filter(id => id !== userId);
+        await document.save();
+
+        const updatedDocument = await Document.findByPk(documentId, {
+            include: [
+                {
+                    model: User,
+                    as: 'senderUser',
+                    attributes: ['id', 'firstname', 'email']
+                },
+                {
+                    model: User,
+                    as: 'receiverUser',
+                    attributes: ['id', 'firstname', 'email']
+                }
+            ]
+        });
+
+        return res.status(200).json({
+            message: 'Document unshared successfully',
+            document: updatedDocument
+        });
+
+    } catch (error) {
+        console.error('Error unsharing document:', error);
+        return res.status(500).json({
+            message: 'Error unsharing document',
+            error: error.message
+        });
+    }
+});
+
+// ==================== CLIENT ENDPOINTS ====================
+
+router.get('/received', googleAuth, async (req, res) => {
+    try {
+        const clientId = req.user.id;
+
+        const documents = await Document.findAll({
+            where: {
+                [Op.or]: [
+                    { receiver: clientId },
+                    where(
+                        fn('JSON_ARRAY_LENGTH', col('sharedWith')),
+                        Op.gt,
+                        0
+                    )
+                ]
+            },
+            include: [
+                {
+                    model: User,
+                    as: 'senderUser',
+                    attributes: ['id', 'firstname', 'email', 'lastname']
                 }
             ],
             order: [['createdAt', 'DESC']]
         });
 
+        // Client-side filter only for sharedWith (minimal filtering)
+        const filteredDocuments = documents.filter(doc =>
+            doc.receiver === clientId ||
+            (Array.isArray(doc.sharedWith) && doc.sharedWith.includes(clientId))
+        );
+
         return res.status(200).json({
-            count: documents.length,
-            documents: documents
+            count: filteredDocuments.length,
+            documents: filteredDocuments
         });
 
     } catch (error) {
@@ -300,12 +429,7 @@ router.get('/received', googleAuth, async (req, res) => {
     }
 });
 
-/**
- * READ: Client gets a specific document detail
- * GET /api/documents/:documentId
- * Requires googleAuth middleware (client)
- * Also marks document as viewed
- */
+
 router.get('/:documentId', googleAuth, async (req, res) => {
     try {
         const { documentId } = req.params;
@@ -330,9 +454,10 @@ router.get('/:documentId', googleAuth, async (req, res) => {
             return res.status(404).json({ message: 'Document not found' });
         }
 
-        // Verify access (only receiver can view)
-        if (document.receiver !== clientId) {
-            return res.status(403).json({ message: 'Unauthorized: You can only view documents sent to you' });
+        // Verify access (receiver or shared with)
+        const sharedWith = document.sharedWith || [];
+        if (document.receiver !== clientId && !sharedWith.includes(clientId)) {
+            return res.status(403).json({ message: 'Unauthorized: You do not have access to this document' });
         }
 
         // Mark as viewed if not already
@@ -354,12 +479,6 @@ router.get('/:documentId', googleAuth, async (req, res) => {
     }
 });
 
-/**
- * READ: Get all documents (admin/analytics endpoint)
- * GET /api/documents/all
- * Requires authentication middleware
- * Returns all documents with pagination
- */
 router.get('/all', adminAuthorization, async (req, res) => {
     try {
         const { page = 1, limit = 10 } = req.query;
@@ -399,12 +518,6 @@ router.get('/all', adminAuthorization, async (req, res) => {
     }
 });
 
-/**
- * DELETE: Client marks document as deleted (soft delete)
- * DELETE /api/documents/client/:documentId
- * Requires googleAuth middleware (client)
- * Client can only mark as deleted, not actually delete
- */
 router.delete('/client/:documentId', googleAuth, async (req, res) => {
     try {
         const { documentId } = req.params;
@@ -417,8 +530,9 @@ router.delete('/client/:documentId', googleAuth, async (req, res) => {
         }
 
         // Verify access
-        if (document.receiver !== clientId) {
-            return res.status(403).json({ message: 'Unauthorized: You can only delete documents sent to you' });
+        const sharedWith = document.sharedWith || [];
+        if (document.receiver !== clientId && !sharedWith.includes(clientId)) {
+            return res.status(403).json({ message: 'Unauthorized: You do not have access to this document' });
         }
 
         // Archive/delete from client perspective

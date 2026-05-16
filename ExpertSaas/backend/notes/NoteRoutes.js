@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Note = require('./Note');
 const { authentication } = require('../middleware/authMiddleware');
-const { alarmQueue } = require("../config/queue.js");
+// const { alarmQueue } = require("../config/queue.js");
 router.get('/myNotes', authentication, async (req, res) => {
     try {
         const id = req.user.userId;
@@ -71,11 +71,11 @@ router.post('/add', authentication, async (req, res) => {
             const delay = new Date(note.alarmAt) - new Date();
 
             if (delay > 0) {
-                await alarmQueue.add(
-                    "alarm-job",
-                    { noteId: note.id },
-                    { delay,jobId:note.id }
-                );
+                // await alarmQueue.add(
+                //     "alarm-job",
+                //     { noteId: note.id },
+                //     { delay,jobId:note.id }
+                // );
             }
         }
         res.json(note);

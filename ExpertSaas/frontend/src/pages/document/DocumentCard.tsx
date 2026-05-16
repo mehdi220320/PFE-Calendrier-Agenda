@@ -9,16 +9,19 @@ import {
     Calendar,
     Paperclip,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Share2,
+    Users
 } from 'lucide-react';
 
 interface DocumentCardProps {
     document: Document;
     onEdit: (document: Document) => void;
     onDelete: (id: string) => void;
+    onShare?: (document: Document) => void;
 }
 
-const DocumentCard: React.FC<DocumentCardProps> = ({ document, onEdit, onDelete }) => {
+const DocumentCard: React.FC<DocumentCardProps> = ({ document, onEdit, onDelete, onShare }) => {
     const [estDeplie, setEstDeplie] = useState(false);
     const [estEnTelechargement, setEstEnTelechargement] = useState<string | null>(null);
 
@@ -112,6 +115,12 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onEdit, onDelete 
                                     {document.files.length} fichier{document.files.length !== 1 ? 's' : ''}
                                 </span>
                             )}
+                            {document.sharedWith && document.sharedWith.length > 0 && (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                                    <Users className="w-3 h-3" />
+                                    Partagé ({document.sharedWith.length})
+                                </span>
+                            )}
                         </div>
                     </div>
 
@@ -124,6 +133,15 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onEdit, onDelete 
                                 title="Modifier le document"
                             >
                                 <Edit2 className="w-4 h-4" />
+                            </button>
+                        )}
+                        {document.status !== 'viewed' && onShare && (
+                            <button
+                                onClick={() => onShare(document)}
+                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                title="Partager le document"
+                            >
+                                <Share2 className="w-4 h-4" />
                             </button>
                         )}
                         {document.status !== 'viewed' && (
@@ -140,34 +158,51 @@ const DocumentCard: React.FC<DocumentCardProps> = ({ document, onEdit, onDelete 
 
                 {/* Informations destinataire */}
                 <div className="flex justify-between items-start text-sm text-gray-600 mb-2">
-
                     {/* LEFT SIDE */}
-                    <div className="flex items-start gap-2">
-                        <User className="w-4 h-4 mt-0.5" />
-
-                        <div className="flex flex-col">
-            <span>
-                Envoyé à:{' '}
-                <span className="font-medium">
-                    {document.receiverUser?.name || document.receiver}
-                </span>
-            </span>
-
-                            {document.receiverUser?.email && (
+                    {document.receiverUser !== null && (
+                        <div className="flex items-start gap-2">
+                            <User className="w-4 h-4 mt-0.5" />
+                            <div className="flex flex-col">
+                                <span>
+                                    Envoyé à:{' '}
+                                    <span className="font-medium">
+                                        {document.receiverUser?.name || document.receiver}
+                                    </span>
+                                </span>
                                 <span className="text-gray-500 text-xs">
-                    {document.receiverUser.email}
-                </span>
-                            )}
+                                    {document.receiverUser?.email}
+                                </span>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* RIGHT SIDE (DATE) */}
                     <div className="flex items-center gap-2 text-sm text-gray-500">
                         <Calendar className="w-4 h-4" />
                         <span>{formaterDate(document.createdAt)}</span>
                     </div>
-
                 </div>
+
+                {/* Afficher les utilisateurs avec qui le document est partagé */}
+                {document.sharedWith && document.sharedWith.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                        <div className="flex items-start gap-2">
+                            <Users className="w-4 h-4 text-purple-600 mt-0.5" />
+                            <div className="flex-1">
+                                <p className="text-xs font-medium text-gray-700 mb-1">
+                                    Partagé avec {document.sharedWith.length} personne{document.sharedWith.length !== 1 ? 's' : ''} :
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                    {document.sharedWith.map((userId, index) => (
+                                        <span key={index} className="text-xs text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">
+                                            {userId.substring(0, 8)}...
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Corps - Flex grow pour repousser le footer vers le bas */}

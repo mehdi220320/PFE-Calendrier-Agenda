@@ -14,6 +14,7 @@ const ReceivedDocuments: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [viewingDocumentId, setViewingDocumentId] = useState<string | null>(null);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -31,10 +32,10 @@ const ReceivedDocuments: React.FC = () => {
             if (document) {
                 handleViewDocument(document);
                 // Remove documentId from URL without refreshing
-                navigate('/documents', { replace: true });
+                navigate('/documents/received', { replace: true });
             }
         }
-    }, [documentId, documents]);
+    }, [documentId, documents, navigate]);
 
     const fetchReceivedDocuments = async () => {
         try {
@@ -50,19 +51,30 @@ const ReceivedDocuments: React.FC = () => {
     };
 
     const handleViewDocument = async (document: Document) => {
+        // Prevent multiple simultaneous views
+        if (viewingDocumentId === document.id) return;
+
         try {
-            await documentService.markAsViewed(document.id);
+            setViewingDocumentId(document.id);
+            const response = await documentService.markAsViewed(document.id);
+
+            // Update the document in the local state
+            const updatedDocument = response.document;
             setDocuments(prevDocs =>
                 prevDocs.map(doc =>
-                    doc.id === document.id
-                        ? { ...doc, status: 'viewed' }
+                    doc.id === updatedDocument.id
+                        ? updatedDocument
                         : doc
                 )
             );
-            setSelectedDocument({ ...document, status: 'viewed' });
+            setSelectedDocument(updatedDocument);
         } catch (error) {
-            console.error('Erreur lors du marquage du document:', error);
+            console.error('Erreur lors du chargement du document:', error);
+            toast.error('Erreur lors du chargement du document');
+            // Still show the document even if status update fails
             setSelectedDocument(document);
+        } finally {
+            setViewingDocumentId(null);
         }
     };
 
@@ -75,7 +87,12 @@ const ReceivedDocuments: React.FC = () => {
             setDeletingId(documentId);
             await documentService.deleteFromInbox(documentId);
             toast.success('Document supprimé avec succès');
-            fetchReceivedDocuments();
+            // Remove from local state instead of refetching
+            setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== documentId));
+            // Close modal if the deleted document was open
+            if (selectedDocument?.id === documentId) {
+                setSelectedDocument(null);
+            }
         } catch (error) {
             console.error('Erreur lors de la suppression:', error);
             toast.error('Erreur lors de la suppression du document');
@@ -266,6 +283,7 @@ const ReceivedDocuments: React.FC = () => {
                                     onView={handleViewDocument}
                                     onDelete={handleDeleteDocument}
                                     isDeleting={deletingId === doc.id}
+                                    isLoading={viewingDocumentId === doc.id}
                                 />
                             ))}
                         </div>
@@ -299,7 +317,7 @@ const ReceivedDocuments: React.FC = () => {
                                             </div>
                                             <div>
                                                 <p className="font-medium text-gray-900">
-                                                    {selectedDocument.senderUser.firstname} {selectedDocument.senderUser.lastname}
+                                                    {selectedDocument.senderUser.firstname} {selectedDocument.senderUser.lastname || ''}
                                                 </p>
                                                 <p className="text-blue-600 text-sm">{selectedDocument.senderUser.email}</p>
                                             </div>
@@ -362,8 +380,19 @@ const ReceivedDocuments: React.FC = () => {
 
                                 <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 flex justify-end gap-3">
                                     <button
+                                        onClick={() => {
+                                            if (selectedDocument.id && onDelete) {
+                                                handleDeleteDocument(selectedDocument.id);
+                                            }
+                                            setSelectedDocument(null);
+                                        }}
+                                        className="px-4 py-2 text-sm text-red-600 hover:text-red-700 transition-colors"
+                                    >
+                                        Supprimer
+                                    </button>
+                                    <button
                                         onClick={() => setSelectedDocument(null)}
-                                        className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                                        className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                                     >
                                         Fermer
                                     </button>

@@ -6,7 +6,7 @@ const registerRoutes = require('./routes');
 const User = require('./models/User.js');
 const { initSocket } = require("./socket");
 const http = require("http");
-const startWorker = require("./worker");
+// const startWorker = require("./worker");
 const app = express();
 
 app.use(cors({
@@ -20,7 +20,7 @@ const server = http.createServer(app);
 
 const io = initSocket(server);
 registerRoutes(app);
-startWorker(io);
+// startWorker(io);
 
 
 sequelize.sync({ alter: true })

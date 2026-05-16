@@ -13,19 +13,20 @@ export interface Document {
     description: string | null;
     summary: string | null;
     sender: string;
-    receiver: string;
+    receiver: string | null;
+    sharedWith: string[];
     files: FileAttachment[];
     status: 'pending' | 'sent' | 'received' | 'viewed';
     createdAt: Date;
     updatedAt: Date;
     senderUser?: {
         id: string;
-        name: string;
+        firstname: string;
         email: string;
     };
-    documentsFiltres?: {
+    receiverUser?: {
         id: string;
-        name: string;
+        firstname: string;
         email: string;
     };
 }
@@ -51,7 +52,7 @@ export interface CreateDocumentData {
     title: string;
     description?: string;
     summary?: string;
-    receiverId: string;
+    receiverId?: string;
     files: File[];
 }
 
@@ -59,4 +60,9 @@ export interface UpdateDocumentData {
     title?: string;
     description?: string;
     summary?: string;
+    receiverId?: string;
+}
+
+export interface ShareDocumentData {
+    userIds: string[];
 }
