@@ -11,4 +11,6 @@ module.exports = (app) => {
     app.use('/api/dashboard/admin', require('../dashboard/AdminDashboardRoutes'));
     app.use('/api/reclamation', require('../reclamations/ReclamationRoutes'));
     app.use('/api/document', require('../documents/DocumentRoutes'));
+    app.use('/api/gemini', require('../IA/gemini-routes-cloudinary'));
+
 };
